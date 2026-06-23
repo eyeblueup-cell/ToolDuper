@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local GuiService = game:GetService("GuiService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -313,7 +312,7 @@ attrHeaderCorner.CornerRadius = UDim.new(0, 6)
 attrHeaderCorner.Parent = attrHeader
 
 local attrTitle = Instance.new("TextLabel")
-attrTitle.Size = UDim2.new(0.5, -10, 1, 0)
+attrTitle.Size = UDim2.new(0.4, -10, 1, 0)
 attrTitle.Position = UDim2.new(0, 10, 0, 0)
 attrTitle.BackgroundTransparency = 1
 attrTitle.Text = "✨ All Attributes"
@@ -323,19 +322,20 @@ attrTitle.TextSize = 14
 attrTitle.TextXAlignment = Enum.TextXAlignment.Left
 attrTitle.Parent = attrHeader
 
-local attrRefreshBtn = Instance.new("TextButton")
-attrRefreshBtn.Size = UDim2.new(0, 80, 1, -8)
-attrRefreshBtn.Position = UDim2.new(1, -90, 0, 4)
-attrRefreshBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-attrRefreshBtn.Text = "🔄 Refresh"
-attrRefreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-attrRefreshBtn.Font = Enum.Font.GothamBold
-attrRefreshBtn.TextSize = 12
-attrRefreshBtn.Parent = attrHeader
+-- Target Dropdown
+local attrTargetBtn = Instance.new("TextButton")
+attrTargetBtn.Size = UDim2.new(0, 100, 1, -8)
+attrTargetBtn.Position = UDim2.new(1, -280, 0, 4)
+attrTargetBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+attrTargetBtn.Text = "📍 Player"
+attrTargetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+attrTargetBtn.Font = Enum.Font.GothamBold
+attrTargetBtn.TextSize = 11
+attrTargetBtn.Parent = attrHeader
 
-local attrRefreshCorner = Instance.new("UICorner")
-attrRefreshCorner.CornerRadius = UDim.new(0, 4)
-attrRefreshCorner.Parent = attrRefreshBtn
+local attrTargetCorner = Instance.new("UICorner")
+attrTargetCorner.CornerRadius = UDim.new(0, 4)
+attrTargetCorner.Parent = attrTargetBtn
 
 local attrAddBtn = Instance.new("TextButton")
 attrAddBtn.Size = UDim2.new(0, 80, 1, -8)
@@ -351,19 +351,19 @@ local attrAddCorner = Instance.new("UICorner")
 attrAddCorner.CornerRadius = UDim.new(0, 4)
 attrAddCorner.Parent = attrAddBtn
 
-local attrTargetDropdown = Instance.new("TextButton")
-attrTargetDropdown.Size = UDim2.new(0, 90, 1, -8)
-attrTargetDropdown.Position = UDim2.new(1, -280, 0, 4)
-attrTargetDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-attrTargetDropdown.Text = "📍 Player"
-attrTargetDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
-attrTargetDropdown.Font = Enum.Font.GothamBold
-attrTargetDropdown.TextSize = 11
-attrTargetDropdown.Parent = attrHeader
+local attrRefreshBtn = Instance.new("TextButton")
+attrRefreshBtn.Size = UDim2.new(0, 80, 1, -8)
+attrRefreshBtn.Position = UDim2.new(1, -90, 0, 4)
+attrRefreshBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+attrRefreshBtn.Text = "🔄 Refresh"
+attrRefreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+attrRefreshBtn.Font = Enum.Font.GothamBold
+attrRefreshBtn.TextSize = 12
+attrRefreshBtn.Parent = attrHeader
 
-local attrTargetCorner = Instance.new("UICorner")
-attrTargetCorner.CornerRadius = UDim.new(0, 4)
-attrTargetCorner.Parent = attrTargetDropdown
+local attrRefreshCorner = Instance.new("UICorner")
+attrRefreshCorner.CornerRadius = UDim.new(0, 4)
+attrRefreshCorner.Parent = attrRefreshBtn
 
 local attrPropsScroll = Instance.new("ScrollingFrame")
 attrPropsScroll.Size = UDim2.new(1, 0, 1, -46)
@@ -407,6 +407,108 @@ local function createLabel(parent, text, color, size)
 	return label
 end
 
+-- Custom input prompt using a TextBox instead of GuiService
+local function createInputPrompt(title, currentValue, callback)
+	local overlay = Instance.new("Frame")
+	overlay.Size = UDim2.new(1, 0, 1, 0)
+	overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	overlay.BackgroundTransparency = 0.5
+	overlay.ZIndex = 1000
+	overlay.Parent = screenGui
+	
+	local prompt = Instance.new("Frame")
+	prompt.Size = UDim2.new(0, 350, 0, 120)
+	prompt.Position = UDim2.new(0.5, -175, 0.5, -60)
+	prompt.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+	prompt.BorderSizePixel = 0
+	prompt.ZIndex = 1001
+	prompt.Parent = overlay
+	
+	local promptCorner = Instance.new("UICorner")
+	promptCorner.CornerRadius = UDim.new(0, 8)
+	promptCorner.Parent = prompt
+	
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Size = UDim2.new(1, -20, 0, 30)
+	titleLabel.Position = UDim2.new(0, 10, 0, 5)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = title
+	titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.TextSize = 14
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.Parent = prompt
+	
+	local inputBox = Instance.new("TextBox")
+	inputBox.Size = UDim2.new(1, -20, 0, 30)
+	inputBox.Position = UDim2.new(0, 10, 0, 40)
+	inputBox.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+	inputBox.Text = currentValue or ""
+	inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	inputBox.Font = Enum.Font.Code
+	inputBox.TextSize = 14
+	inputBox.ClearTextOnFocus = false
+	inputBox.ZIndex = 1002
+	inputBox.Parent = prompt
+	
+	local inputCorner = Instance.new("UICorner")
+	inputCorner.CornerRadius = UDim.new(0, 4)
+	inputCorner.Parent = inputBox
+	
+	local confirmBtn = Instance.new("TextButton")
+	confirmBtn.Size = UDim2.new(0, 100, 0, 30)
+	confirmBtn.Position = UDim2.new(1, -110, 1, -35)
+	confirmBtn.BackgroundColor3 = Color3.fromRGB(35, 165, 90)
+	confirmBtn.Text = "Confirm"
+	confirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	confirmBtn.Font = Enum.Font.GothamBold
+	confirmBtn.TextSize = 14
+	confirmBtn.ZIndex = 1002
+	confirmBtn.Parent = prompt
+	
+	local confirmCorner = Instance.new("UICorner")
+	confirmCorner.CornerRadius = UDim.new(0, 4)
+	confirmCorner.Parent = confirmBtn
+	
+	local cancelBtn = Instance.new("TextButton")
+	cancelBtn.Size = UDim2.new(0, 80, 0, 30)
+	cancelBtn.Position = UDim2.new(1, -200, 1, -35)
+	cancelBtn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+	cancelBtn.Text = "Cancel"
+	cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	cancelBtn.Font = Enum.Font.GothamBold
+	cancelBtn.TextSize = 14
+	cancelBtn.ZIndex = 1002
+	cancelBtn.Parent = prompt
+	
+	local cancelCorner = Instance.new("UICorner")
+	cancelCorner.CornerRadius = UDim.new(0, 4)
+	cancelCorner.Parent = cancelBtn
+	
+	local function closePrompt(value)
+		overlay:Destroy()
+		if value ~= nil then
+			callback(value)
+		end
+	end
+	
+	confirmBtn.MouseButton1Click:Connect(function()
+		closePrompt(inputBox.Text)
+	end)
+	
+	cancelBtn.MouseButton1Click:Connect(function()
+		closePrompt(nil)
+	end)
+	
+	inputBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			closePrompt(inputBox.Text)
+		end
+	end)
+	
+	inputBox:CaptureFocus()
+end
+
 local function createEditableValue(parent, name, value, onEdit, showDelete)
 	local container = Instance.new("Frame")
 	container.Size = UDim2.new(1, 0, 0, 32)
@@ -419,7 +521,7 @@ local function createEditableValue(parent, name, value, onEdit, showDelete)
 	containerCorner.Parent = container
 	
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(0.4, 0, 1, 0)
+	nameLabel.Size = UDim2.new(0.35, 0, 1, 0)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Text = name
 	nameLabel.TextColor3 = Color3.fromRGB(180, 180, 220)
@@ -430,8 +532,8 @@ local function createEditableValue(parent, name, value, onEdit, showDelete)
 	nameLabel.Parent = container
 	
 	local typeLabel = Instance.new("TextLabel")
-	typeLabel.Size = UDim2.new(0, 50, 1, 0)
-	typeLabel.Position = UDim2.new(0.4, 5, 0, 0)
+	typeLabel.Size = UDim2.new(0, 45, 1, 0)
+	typeLabel.Position = UDim2.new(0.35, 5, 0, 0)
 	typeLabel.BackgroundTransparency = 1
 	typeLabel.Text = "[" .. typeof(value) .. "]"
 	typeLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
@@ -441,8 +543,8 @@ local function createEditableValue(parent, name, value, onEdit, showDelete)
 	typeLabel.Parent = container
 	
 	local valueBtn = Instance.new("TextButton")
-	valueBtn.Size = UDim2.new(0.6, -60, 1, -4)
-	valueBtn.Position = UDim2.new(0.4, 60, 0, 2)
+	valueBtn.Size = UDim2.new(0.65, -60, 1, -4)
+	valueBtn.Position = UDim2.new(0.35, 55, 0, 2)
 	valueBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 	valueBtn.Text = tostring(value)
 	valueBtn.TextColor3 = Color3.fromRGB(255, 255, 200)
@@ -497,27 +599,24 @@ local function createEditableValue(parent, name, value, onEdit, showDelete)
 		valueBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 	end
 	
-	valueBtn.MouseButton1Click:Connect(function()
+	local function promptEdit()
 		local currentVal = valueBtn.Text
-		local success, prompt = pcall(function()
-			return GuiService:PromptInput("Enter new value for '" .. name .. "'", currentVal)
-		end)
-		
-		if success and prompt and prompt ~= "" then
-			local num = tonumber(prompt)
-			if num ~= nil then
-				updateValue(num)
-			elseif prompt == "true" or prompt == "false" then
-				updateValue(prompt == "true")
-			else
-				updateValue(prompt)
+		createInputPrompt("Edit '" .. name .. "'", currentVal, function(input)
+			if input and input ~= "" then
+				local num = tonumber(input)
+				if num ~= nil then
+					updateValue(num)
+				elseif input == "true" or input == "false" then
+					updateValue(input == "true")
+				else
+					updateValue(input)
+				end
 			end
-		end
-	end)
+		end)
+	end
 	
-	editIcon.MouseButton1Click:Connect(function()
-		valueBtn.MouseButton1Click:Fire()
-	end)
+	valueBtn.MouseButton1Click:Connect(promptEdit)
+	editIcon.MouseButton1Click:Connect(promptEdit)
 	
 	return container, valueBtn, deleteIcon
 end
@@ -729,4 +828,138 @@ local function scanAllAttributes()
 	end
 	
 	createSectionHeader(attrPropsScroll, "📍 Target: " .. targetName, Color3.fromRGB(100, 200, 255))
-	createLabel(attrPropsScroll, "  Name: " .. targetObj.Name, Color3.fromRGB(220, 220
+	createLabel(attrPropsScroll, "  Name: " .. targetObj.Name, Color3.fromRGB(220, 220, 220), 22)
+	
+	local attributes = targetObj:GetAttributes()
+	if next(attributes) ~= nil then
+		createSectionHeader(attrPropsScroll, "✨ Attributes (Click to Edit)", Color3.fromRGB(100, 255, 150))
+		for name, value in pairs(attributes) do
+			local container, _, deleteBtn = createEditableValue(attrPropsScroll, name, value, function(newVal)
+				targetObj:SetAttribute(name, newVal)
+				statusText.Text = "✅ Updated '" .. name .. "' to: " .. tostring(newVal)
+				statusText.TextColor3 = Color3.fromRGB(100, 255, 100)
+			end, true)
+			deleteBtn.MouseButton1Click:Connect(function()
+				targetObj:SetAttribute(name, nil)
+				container:Destroy()
+				updateScrollCanvas(attrPropsScroll, attrPropsLayout)
+				statusText.Text = "🗑️ Deleted attribute: " .. name
+				statusText.TextColor3 = Color3.fromRGB(255, 200, 100)
+			end)
+		end
+	else
+		createLabel(attrPropsScroll, "  (No attributes found)", Color3.fromRGB(150, 150, 150), 22)
+	end
+	
+	updateScrollCanvas(attrPropsScroll, attrPropsLayout)
+end
+
+-- =============================================================================
+-- 9. TAB SWITCHING & BUTTON ACTIONS
+-- =============================================================================
+local function switchTab(tab)
+	toolContent.Visible = (tab == "tool")
+	playerContent.Visible = (tab == "player")
+	attrContent.Visible = (tab == "attributes")
+	
+	toolTab.BackgroundColor3 = (tab == "tool") and Color3.fromRGB(50, 50, 60) or Color3.fromRGB(30, 30, 38)
+	toolTab.TextColor3 = (tab == "tool") and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 190)
+	playerTab.BackgroundColor3 = (tab == "player") and Color3.fromRGB(50, 50, 60) or Color3.fromRGB(30, 30, 38)
+	playerTab.TextColor3 = (tab == "player") and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 190)
+	attrTab.BackgroundColor3 = (tab == "attributes") and Color3.fromRGB(50, 50, 60) or Color3.fromRGB(30, 30, 38)
+	attrTab.TextColor3 = (tab == "attributes") and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 190)
+	
+	if tab == "tool" then scanTool() end
+	if tab == "player" then scanPlayer() end
+	if tab == "attributes" then scanAllAttributes() end
+end
+
+toolTab.MouseButton1Click:Connect(function() switchTab("tool") end)
+playerTab.MouseButton1Click:Connect(function() switchTab("player") end)
+attrTab.MouseButton1Click:Connect(function() switchTab("attributes") end)
+
+toolRefreshBtn.MouseButton1Click:Connect(scanTool)
+playerRefreshBtn.MouseButton1Click:Connect(scanPlayer)
+attrRefreshBtn.MouseButton1Click:Connect(scanAllAttributes)
+
+-- Target dropdown
+local targetOptions = {"Player", "Character", "Tool"}
+local targetIndex = 1
+
+attrTargetBtn.MouseButton1Click:Connect(function()
+	targetIndex = targetIndex % #targetOptions + 1
+	attrTarget = string.lower(targetOptions[targetIndex])
+	attrTargetBtn.Text = "📍 " .. targetOptions[targetIndex]
+	scanAllAttributes()
+end)
+
+-- Add Attribute
+attrAddBtn.MouseButton1Click:Connect(function()
+	local targetObj = nil
+	if attrTarget == "player" then
+		targetObj = player
+	elseif attrTarget == "character" then
+		targetObj = player.Character
+	elseif attrTarget == "tool" then
+		local char = player.Character
+		if char then
+			targetObj = char:FindFirstChildOfClass("Tool")
+		end
+	end
+	
+	if not targetObj then
+		statusText.Text = "❌ Target not found!"
+		statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+		return
+	end
+	
+	createInputPrompt("Enter attribute name", "", function(name)
+		if name and name ~= "" then
+			createInputPrompt("Enter value for '" .. name .. "'", "1", function(value)
+				if value and value ~= "" then
+					local num = tonumber(value)
+					if num ~= nil then
+						targetObj:SetAttribute(name, num)
+					elseif value == "true" or value == "false" then
+						targetObj:SetAttribute(name, value == "true")
+					else
+						targetObj:SetAttribute(name, value)
+					end
+					statusText.Text = "✅ Added attribute: " .. name .. " = " .. value
+					statusText.TextColor3 = Color3.fromRGB(100, 255, 100)
+					scanAllAttributes()
+				end
+			end)
+		end
+	end)
+end)
+
+-- =============================================================================
+-- 10. TOGGLE SYSTEM
+-- =============================================================================
+local function toggleUI()
+	mainFrame.Visible = not mainFrame.Visible
+	openButton.Visible = not mainFrame.Visible
+end
+
+closeButton.MouseButton1Click:Connect(toggleUI)
+openButton.MouseButton1Click:Connect(toggleUI)
+
+local lastToggle = 0
+UserInputService.InputBegan:Connect(function(input, processed)
+	if input.KeyCode == Enum.KeyCode.M or input.KeyCode == Enum.KeyCode.RightShift then
+		local now = tick()
+		if now - lastToggle > 0.3 then
+			lastToggle = now
+			toggleUI()
+		end
+	end
+end)
+
+-- =============================================================================
+-- 11. INITIALIZATION
+-- =============================================================================
+switchTab("tool")
+print("⚡ Advanced Modifier Suite loaded successfully!")
+print("📌 Press [M] or [Right Shift] to toggle UI")
+print("📌 Click any value to edit it directly")
