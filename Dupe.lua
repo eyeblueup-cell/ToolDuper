@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -18,8 +19,8 @@ screenGui.Parent = playerGui
 -- =============================================================================
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainPanel"
-mainFrame.Size = UDim2.new(0, 500, 0, 480)
-mainFrame.Position = UDim2.new(0.5, -250, 0.4, -240)
+mainFrame.Size = UDim2.new(0, 520, 0, 480)
+mainFrame.Position = UDim2.new(0.5, -260, 0.4, -240)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -28,16 +29,6 @@ mainFrame.Parent = screenGui
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 10)
 mainCorner.Parent = mainFrame
-
--- Drop Shadow
-local shadow = Instance.new("ImageLabel")
-shadow.Size = UDim2.new(1, 20, 1, 20)
-shadow.Position = UDim2.new(0, -10, 0, -10)
-shadow.BackgroundTransparency = 1
-shadow.Image = "rbxasset://textures/ui/ShadowBorder.png"
-shadow.ImageScaleType = Enum.ScaleType.Slice
-shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-shadow.Parent = mainFrame
 
 -- Title Bar
 local titleBar = Instance.new("Frame")
@@ -61,19 +52,6 @@ titleText.Font = Enum.Font.GothamBold
 titleText.TextSize = 16
 titleText.TextXAlignment = Enum.TextXAlignment.Left
 titleText.Parent = titleBar
-
--- Subtitle
-local subtitle = Instance.new("TextLabel")
-subtitle.Size = UDim2.new(1, -80, 1, 0)
-subtitle.Position = UDim2.new(0, 15, 0, 20)
-subtitle.BackgroundTransparency = 1
-subtitle.Text = "Press [M] or [Right Shift] to toggle • Click any value to edit it"
-subtitle.TextColor3 = Color3.fromRGB(150, 150, 160)
-subtitle.Font = Enum.Font.SourceSans
-subtitle.TextSize = 11
-subtitle.TextXAlignment = Enum.TextXAlignment.Left
-subtitle.Visible = false
-subtitle.Parent = titleBar
 
 -- Drag Detector
 local dragDetector = Instance.new("UIDragDetector")
@@ -195,7 +173,6 @@ attrContent.Parent = mainFrame
 -- =============================================================================
 -- 4. TOOL TAB CONTENT
 -- =============================================================================
--- Tool Header with Refresh Button
 local toolHeader = Instance.new("Frame")
 toolHeader.Size = UDim2.new(1, 0, 0, 36)
 toolHeader.Position = UDim2.new(0, 0, 0, 0)
@@ -232,7 +209,6 @@ local toolRefreshCorner = Instance.new("UICorner")
 toolRefreshCorner.CornerRadius = UDim.new(0, 4)
 toolRefreshCorner.Parent = toolRefreshBtn
 
--- Tool Props Scroll
 local toolPropsScroll = Instance.new("ScrollingFrame")
 toolPropsScroll.Size = UDim2.new(1, 0, 1, -46)
 toolPropsScroll.Position = UDim2.new(0, 0, 0, 40)
@@ -297,7 +273,6 @@ local playerRefreshCorner = Instance.new("UICorner")
 playerRefreshCorner.CornerRadius = UDim.new(0, 4)
 playerRefreshCorner.Parent = playerRefreshBtn
 
--- Player Props Scroll
 local playerPropsScroll = Instance.new("ScrollingFrame")
 playerPropsScroll.Size = UDim2.new(1, 0, 1, -46)
 playerPropsScroll.Position = UDim2.new(0, 0, 0, 40)
@@ -338,7 +313,7 @@ attrHeaderCorner.CornerRadius = UDim.new(0, 6)
 attrHeaderCorner.Parent = attrHeader
 
 local attrTitle = Instance.new("TextLabel")
-attrTitle.Size = UDim2.new(0.7, -10, 1, 0)
+attrTitle.Size = UDim2.new(0.5, -10, 1, 0)
 attrTitle.Position = UDim2.new(0, 10, 0, 0)
 attrTitle.BackgroundTransparency = 1
 attrTitle.Text = "✨ All Attributes"
@@ -362,7 +337,6 @@ local attrRefreshCorner = Instance.new("UICorner")
 attrRefreshCorner.CornerRadius = UDim.new(0, 4)
 attrRefreshCorner.Parent = attrRefreshBtn
 
--- Attribute Add Button
 local attrAddBtn = Instance.new("TextButton")
 attrAddBtn.Size = UDim2.new(0, 80, 1, -8)
 attrAddBtn.Position = UDim2.new(1, -180, 0, 4)
@@ -377,7 +351,20 @@ local attrAddCorner = Instance.new("UICorner")
 attrAddCorner.CornerRadius = UDim.new(0, 4)
 attrAddCorner.Parent = attrAddBtn
 
--- Attributes Scroll
+local attrTargetDropdown = Instance.new("TextButton")
+attrTargetDropdown.Size = UDim2.new(0, 90, 1, -8)
+attrTargetDropdown.Position = UDim2.new(1, -280, 0, 4)
+attrTargetDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+attrTargetDropdown.Text = "📍 Player"
+attrTargetDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+attrTargetDropdown.Font = Enum.Font.GothamBold
+attrTargetDropdown.TextSize = 11
+attrTargetDropdown.Parent = attrHeader
+
+local attrTargetCorner = Instance.new("UICorner")
+attrTargetCorner.CornerRadius = UDim.new(0, 4)
+attrTargetCorner.Parent = attrTargetDropdown
+
 local attrPropsScroll = Instance.new("ScrollingFrame")
 attrPropsScroll.Size = UDim2.new(1, 0, 1, -46)
 attrPropsScroll.Position = UDim2.new(0, 0, 0, 40)
@@ -420,7 +407,7 @@ local function createLabel(parent, text, color, size)
 	return label
 end
 
-local function createEditableValue(parent, name, value, onEdit)
+local function createEditableValue(parent, name, value, onEdit, showDelete)
 	local container = Instance.new("Frame")
 	container.Size = UDim2.new(1, 0, 0, 32)
 	container.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
@@ -431,7 +418,6 @@ local function createEditableValue(parent, name, value, onEdit)
 	containerCorner.CornerRadius = UDim.new(0, 4)
 	containerCorner.Parent = container
 	
-	-- Name label
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Size = UDim2.new(0.4, 0, 1, 0)
 	nameLabel.BackgroundTransparency = 1
@@ -443,7 +429,6 @@ local function createEditableValue(parent, name, value, onEdit)
 	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	nameLabel.Parent = container
 	
-	-- Type indicator
 	local typeLabel = Instance.new("TextLabel")
 	typeLabel.Size = UDim2.new(0, 50, 1, 0)
 	typeLabel.Position = UDim2.new(0.4, 5, 0, 0)
@@ -455,7 +440,6 @@ local function createEditableValue(parent, name, value, onEdit)
 	typeLabel.TextXAlignment = Enum.TextXAlignment.Left
 	typeLabel.Parent = container
 	
-	-- Value button (clickable to edit)
 	local valueBtn = Instance.new("TextButton")
 	valueBtn.Size = UDim2.new(0.6, -60, 1, -4)
 	valueBtn.Position = UDim2.new(0.4, 60, 0, 2)
@@ -471,7 +455,6 @@ local function createEditableValue(parent, name, value, onEdit)
 	btnCorner.CornerRadius = UDim.new(0, 3)
 	btnCorner.Parent = valueBtn
 	
-	-- Edit button (pencil)
 	local editIcon = Instance.new("TextButton")
 	editIcon.Size = UDim2.new(0, 24, 1, -4)
 	editIcon.Position = UDim2.new(1, -28, 0, 2)
@@ -486,7 +469,6 @@ local function createEditableValue(parent, name, value, onEdit)
 	editCorner.CornerRadius = UDim.new(0, 3)
 	editCorner.Parent = editIcon
 	
-	-- Delete button (for attributes)
 	local deleteIcon = Instance.new("TextButton")
 	deleteIcon.Size = UDim2.new(0, 20, 1, -4)
 	deleteIcon.Position = UDim2.new(1, -52, 0, 2)
@@ -495,19 +477,21 @@ local function createEditableValue(parent, name, value, onEdit)
 	deleteIcon.TextColor3 = Color3.fromRGB(255, 100, 100)
 	deleteIcon.Font = Enum.Font.GothamBold
 	deleteIcon.TextSize = 12
-	deleteIcon.Visible = false
 	deleteIcon.Parent = container
 	
 	local deleteCorner = Instance.new("UICorner")
 	deleteCorner.CornerRadius = UDim.new(0, 3)
 	deleteCorner.Parent = deleteIcon
 	
+	if not showDelete then
+		deleteIcon.Visible = false
+	end
+	
 	local function updateValue(newVal)
 		valueBtn.Text = tostring(newVal)
 		typeLabel.Text = "[" .. typeof(newVal) .. "]"
 		if onEdit then onEdit(newVal) end
 		
-		-- Flash effect
 		valueBtn.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
 		task.wait(0.15)
 		valueBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
@@ -515,9 +499,11 @@ local function createEditableValue(parent, name, value, onEdit)
 	
 	valueBtn.MouseButton1Click:Connect(function()
 		local currentVal = valueBtn.Text
-		local prompt = game:GetService("GuiService"):PromptInput("Enter new value for '" .. name .. "'", currentVal)
-		if prompt and prompt ~= "" then
-			-- Try to parse as number first
+		local success, prompt = pcall(function()
+			return GuiService:PromptInput("Enter new value for '" .. name .. "'", currentVal)
+		end)
+		
+		if success and prompt and prompt ~= "" then
 			local num = tonumber(prompt)
 			if num ~= nil then
 				updateValue(num)
@@ -586,7 +572,6 @@ local function scanTool()
 	
 	toolNameLabel.Text = "🔧 " .. tool.Name
 	
-	-- Basic Properties section
 	createSectionHeader(toolPropsScroll, "📦 Basic Properties", Color3.fromRGB(100, 200, 255))
 	
 	local basicProps = {"Name", "ClassName", "ToolTip", "Enabled", "CanBeDropped", "RequiresHandle"}
@@ -597,18 +582,15 @@ local function scanTool()
 		end
 	end
 	
-	-- Tool Attributes section
 	local attributes = tool:GetAttributes()
 	if next(attributes) ~= nil then
 		createSectionHeader(toolPropsScroll, "✨ Tool Attributes (Click to Edit)", Color3.fromRGB(100, 255, 150))
-		
 		for name, value in pairs(attributes) do
 			local container, _, deleteBtn = createEditableValue(toolPropsScroll, name, value, function(newVal)
 				tool:SetAttribute(name, newVal)
 				statusText.Text = "✅ Updated '" .. name .. "' to: " .. tostring(newVal)
 				statusText.TextColor3 = Color3.fromRGB(100, 255, 100)
-			end)
-			deleteBtn.Visible = true
+			end, true)
 			deleteBtn.MouseButton1Click:Connect(function()
 				tool:SetAttribute(name, nil)
 				container:Destroy()
@@ -621,7 +603,6 @@ local function scanTool()
 		createLabel(toolPropsScroll, "  (No custom attributes)", Color3.fromRGB(150, 150, 150), 22)
 	end
 	
-	-- Children section
 	local children = tool:GetChildren()
 	if #children > 0 then
 		createSectionHeader(toolPropsScroll, "📂 Child Objects", Color3.fromRGB(255, 200, 100))
@@ -651,13 +632,11 @@ local function scanPlayer()
 	
 	playerNameLabel.Text = "👤 " .. player.Name
 	
-	-- Player Info section
 	createSectionHeader(playerPropsScroll, "👤 Player Info", Color3.fromRGB(100, 200, 255))
 	createLabel(playerPropsScroll, "  Name: " .. player.Name, Color3.fromRGB(220, 220, 220), 22)
 	createLabel(playerPropsScroll, "  Display Name: " .. player.DisplayName, Color3.fromRGB(220, 220, 220), 22)
 	createLabel(playerPropsScroll, "  User ID: " .. player.UserId, Color3.fromRGB(220, 220, 220), 22)
 	
-	-- Character Info section
 	createSectionHeader(playerPropsScroll, "🧍 Character Info", Color3.fromRGB(255, 200, 100))
 	
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -667,7 +646,6 @@ local function scanPlayer()
 		createLabel(playerPropsScroll, "  Jump Power: " .. humanoid.JumpPower, Color3.fromRGB(220, 220, 220), 22)
 	end
 	
-	-- Equipped Tools
 	createSectionHeader(playerPropsScroll, "🔧 Equipped Tools", Color3.fromRGB(100, 255, 200))
 	local tools = character:GetChildren()
 	local hasTools = false
@@ -681,7 +659,6 @@ local function scanPlayer()
 		createLabel(playerPropsScroll, "  (No tools equipped)", Color3.fromRGB(150, 150, 150), 22)
 	end
 	
-	-- Player Attributes
 	local attributes = player:GetAttributes()
 	if next(attributes) ~= nil then
 		createSectionHeader(playerPropsScroll, "✨ Player Attributes (Click to Edit)", Color3.fromRGB(100, 255, 150))
@@ -690,8 +667,7 @@ local function scanPlayer()
 				player:SetAttribute(name, newVal)
 				statusText.Text = "✅ Updated '" .. name .. "' to: " .. tostring(newVal)
 				statusText.TextColor3 = Color3.fromRGB(100, 255, 100)
-			end)
-			deleteBtn.Visible = true
+			end, true)
 			deleteBtn.MouseButton1Click:Connect(function()
 				player:SetAttribute(name, nil)
 				container:Destroy()
@@ -702,7 +678,6 @@ local function scanPlayer()
 		end
 	end
 	
-	-- Character Attributes
 	local charAttributes = character:GetAttributes()
 	if next(charAttributes) ~= nil then
 		createSectionHeader(playerPropsScroll, "✨ Character Attributes (Click to Edit)", Color3.fromRGB(100, 255, 150))
@@ -711,8 +686,7 @@ local function scanPlayer()
 				character:SetAttribute(name, newVal)
 				statusText.Text = "✅ Updated '" .. name .. "' to: " .. tostring(newVal)
 				statusText.TextColor3 = Color3.fromRGB(100, 255, 100)
-			end)
-			deleteBtn.Visible = true
+			end, true)
 			deleteBtn.MouseButton1Click:Connect(function()
 				character:SetAttribute(name, nil)
 				container:Destroy()
@@ -726,9 +700,33 @@ local function scanPlayer()
 	updateScrollCanvas(playerPropsScroll, playerPropsLayout)
 end
 
+local attrTarget = "player" -- "player", "character", or "tool"
+
 local function scanAllAttributes()
 	clearScroll(attrPropsScroll)
 	
-	local character = player.Character
-	if not character then
-		createLabel(attrPropsScroll, "❌ Error: Character not found!", Color3.fromRGB(255, 100,
+	local targetObj = nil
+	local targetName = ""
+	
+	if attrTarget == "player" then
+		targetObj = player
+		targetName = "Player"
+	elseif attrTarget == "character" then
+		targetObj = player.Character
+		targetName = "Character"
+	elseif attrTarget == "tool" then
+		local char = player.Character
+		if char then
+			targetObj = char:FindFirstChildOfClass("Tool")
+			targetName = "Tool"
+		end
+	end
+	
+	if not targetObj then
+		createLabel(attrPropsScroll, "❌ Target not found!", Color3.fromRGB(255, 100, 100))
+		updateScrollCanvas(attrPropsScroll, attrPropsLayout)
+		return
+	end
+	
+	createSectionHeader(attrPropsScroll, "📍 Target: " .. targetName, Color3.fromRGB(100, 200, 255))
+	createLabel(attrPropsScroll, "  Name: " .. targetObj.Name, Color3.fromRGB(220, 220
