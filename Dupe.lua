@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -21,12 +22,14 @@ screenGui.Parent = playerGui
 local UISettings = {
 	Scale = 1.0,
 	Opacity = 1.0,
-	ColorTheme = "Dark", -- "Dark", "Light", "Blue", "Green", "Purple"
+	ColorTheme = "Dark",
 	Position = {X = 0.5, Y = 0.4},
-	Size = {Width = 560, Height = 520},
+	Size = {Width = 600, Height = 560},
 	Draggable = true,
 	ShowStatusBar = true,
 	ShowTabs = true,
+	ShowTitleBar = true,
+	FontSize = 12,
 }
 
 local Themes = {
@@ -45,6 +48,7 @@ local Themes = {
 		TextDim = Color3.fromRGB(160, 160, 170),
 		TextBright = Color3.fromRGB(255, 255, 255),
 		Border = Color3.fromRGB(40, 40, 50),
+		CodeBg = Color3.fromRGB(10, 10, 15),
 	},
 	Light = {
 		Background = Color3.fromRGB(240, 240, 245),
@@ -61,6 +65,7 @@ local Themes = {
 		TextDim = Color3.fromRGB(80, 80, 90),
 		TextBright = Color3.fromRGB(0, 0, 0),
 		Border = Color3.fromRGB(180, 180, 190),
+		CodeBg = Color3.fromRGB(230, 230, 235),
 	},
 	Blue = {
 		Background = Color3.fromRGB(10, 15, 30),
@@ -77,6 +82,7 @@ local Themes = {
 		TextDim = Color3.fromRGB(140, 160, 200),
 		TextBright = Color3.fromRGB(255, 255, 255),
 		Border = Color3.fromRGB(40, 60, 100),
+		CodeBg = Color3.fromRGB(6, 10, 20),
 	},
 	Green = {
 		Background = Color3.fromRGB(8, 25, 12),
@@ -93,6 +99,7 @@ local Themes = {
 		TextDim = Color3.fromRGB(130, 200, 150),
 		TextBright = Color3.fromRGB(255, 255, 255),
 		Border = Color3.fromRGB(40, 80, 50),
+		CodeBg = Color3.fromRGB(4, 15, 6),
 	},
 	Purple = {
 		Background = Color3.fromRGB(20, 10, 30),
@@ -109,6 +116,7 @@ local Themes = {
 		TextDim = Color3.fromRGB(180, 150, 210),
 		TextBright = Color3.fromRGB(255, 255, 255),
 		Border = Color3.fromRGB(60, 40, 80),
+		CodeBg = Color3.fromRGB(12, 6, 18),
 	},
 }
 
@@ -169,7 +177,7 @@ titleText.TextSize = 16
 titleText.TextXAlignment = Enum.TextXAlignment.Left
 titleText.Parent = titleBar
 
--- UI Settings Button
+-- Settings Button
 local settingsBtn = Instance.new("TextButton")
 settingsBtn.Size = UDim2.new(0, 28, 0, 28)
 settingsBtn.Position = UDim2.new(1, -110, 0, 8)
@@ -274,11 +282,6 @@ local function setStatus(text, color, isError)
 	statusText.Text = text
 	statusText.TextColor3 = color or Themes[UISettings.ColorTheme].Text
 	statusDot.BackgroundColor3 = isError and Themes[UISettings.ColorTheme].Danger or Themes[UISettings.ColorTheme].Success
-	
-	local tween = TweenService:Create(statusDot, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-		BackgroundColor3 = isError and Themes[UISettings.ColorTheme].Danger or Themes[UISettings.ColorTheme].Success
-	})
-	tween:Play()
 end
 
 -- =============================================================================
@@ -293,13 +296,13 @@ tabContainer.Parent = mainFrame
 
 local function createTabButton(text, icon, position)
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0.333, -2, 1, -4)
+	btn.Size = UDim2.new(0.2, -2, 1, -4)
 	btn.Position = UDim2.new(position, 0, 0, 2)
 	btn.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundHover
 	btn.Text = icon .. " " .. text
 	btn.TextColor3 = Themes[UISettings.ColorTheme].TextDim
 	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 14
+	btn.TextSize = 13
 	btn.BorderSizePixel = 0
 	btn.Parent = tabContainer
 	
@@ -307,23 +310,14 @@ local function createTabButton(text, icon, position)
 	corner.CornerRadius = UDim.new(0, 6)
 	corner.Parent = btn
 	
-	btn.MouseEnter:Connect(function()
-		if btn.BackgroundColor3 ~= Color3.fromRGB(50, 50, 60) then
-			btn.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundHover
-		end
-	end)
-	btn.MouseLeave:Connect(function()
-		if btn.BackgroundColor3 ~= Color3.fromRGB(50, 50, 60) then
-			btn.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundHover
-		end
-	end)
-	
 	return btn
 end
 
 local toolTab = createTabButton("Tools", "🔧", 0)
-local playerTab = createTabButton("Player", "👤", 0.333)
-local attrTab = createTabButton("Attributes", "✨", 0.666)
+local playerTab = createTabButton("Player", "👤", 0.2)
+local attrTab = createTabButton("Attributes", "✨", 0.4)
+local scriptsTab = createTabButton("Scripts", "📜", 0.6)
+local settingsTab = createTabButton("Settings", "⚙", 0.8)
 
 -- Tab Content Frames
 local toolContent = Instance.new("Frame")
@@ -345,6 +339,20 @@ attrContent.Position = UDim2.new(0, 10, 0, 95)
 attrContent.BackgroundTransparency = 1
 attrContent.Visible = false
 attrContent.Parent = mainFrame
+
+local scriptsContent = Instance.new("Frame")
+scriptsContent.Size = UDim2.new(1, -20, 1, -125)
+scriptsContent.Position = UDim2.new(0, 10, 0, 95)
+scriptsContent.BackgroundTransparency = 1
+scriptsContent.Visible = false
+scriptsContent.Parent = mainFrame
+
+local settingsContent = Instance.new("Frame")
+settingsContent.Size = UDim2.new(1, -20, 1, -125)
+settingsContent.Position = UDim2.new(0, 10, 0, 95)
+settingsContent.BackgroundTransparency = 1
+settingsContent.Visible = false
+settingsContent.Parent = mainFrame
 
 -- =============================================================================
 -- 7. TOOL TAB CONTENT
@@ -578,7 +586,97 @@ attrPropsPadding.PaddingBottom = UDim.new(0, 10)
 attrPropsPadding.Parent = attrPropsScroll
 
 -- =============================================================================
--- 10. UI COMPONENT BUILDERS
+-- 10. SCRIPTS TAB CONTENT
+-- =============================================================================
+local scriptsHeader = Instance.new("Frame")
+scriptsHeader.Size = UDim2.new(1, 0, 0, 40)
+scriptsHeader.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundAlt
+scriptsHeader.BorderSizePixel = 0
+scriptsHeader.Parent = scriptsContent
+
+local scriptsHeaderCorner = Instance.new("UICorner")
+scriptsHeaderCorner.CornerRadius = UDim.new(0, 8)
+scriptsHeaderCorner.Parent = scriptsHeader
+
+local scriptsTitle = Instance.new("TextLabel")
+scriptsTitle.Size = UDim2.new(0.5, -10, 1, 0)
+scriptsTitle.Position = UDim2.new(0, 12, 0, 0)
+scriptsTitle.BackgroundTransparency = 1
+scriptsTitle.Text = "📜 Script Editor"
+scriptsTitle.TextColor3 = Themes[UISettings.ColorTheme].TextBright
+scriptsTitle.Font = Enum.Font.GothamBold
+scriptsTitle.TextSize = 14
+scriptsTitle.TextXAlignment = Enum.TextXAlignment.Left
+scriptsTitle.Parent = scriptsHeader
+
+local scriptsRefreshBtn = Instance.new("TextButton")
+scriptsRefreshBtn.Size = UDim2.new(0, 80, 1, -8)
+scriptsRefreshBtn.Position = UDim2.new(1, -96, 0, 4)
+scriptsRefreshBtn.BackgroundColor3 = Themes[UISettings.ColorTheme].Primary
+scriptsRefreshBtn.Text = "🔄 Refresh"
+scriptsRefreshBtn.TextColor3 = Themes[UISettings.ColorTheme].TextBright
+scriptsRefreshBtn.Font = Enum.Font.GothamBold
+scriptsRefreshBtn.TextSize = 11
+scriptsRefreshBtn.Parent = scriptsHeader
+
+local scriptsRefreshCorner = Instance.new("UICorner")
+scriptsRefreshCorner.CornerRadius = UDim.new(0, 4)
+scriptsRefreshCorner.Parent = scriptsRefreshBtn
+
+local scriptsScroll = Instance.new("ScrollingFrame")
+scriptsScroll.Size = UDim2.new(1, 0, 1, -48)
+scriptsScroll.Position = UDim2.new(0, 0, 0, 44)
+scriptsScroll.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundAlt
+scriptsScroll.BorderSizePixel = 0
+scriptsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scriptsScroll.ScrollBarThickness = 6
+scriptsScroll.Parent = scriptsContent
+
+local scriptsCorner = Instance.new("UICorner")
+scriptsCorner.CornerRadius = UDim.new(0, 8)
+scriptsCorner.Parent = scriptsScroll
+
+local scriptsLayout = Instance.new("UIListLayout")
+scriptsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+scriptsLayout.Padding = UDim.new(0, 4)
+scriptsLayout.Parent = scriptsScroll
+
+local scriptsPadding = Instance.new("UIPadding")
+scriptsPadding.PaddingLeft = UDim.new(0, 10)
+scriptsPadding.PaddingTop = UDim.new(0, 10)
+scriptsPadding.PaddingRight = UDim.new(0, 10)
+scriptsPadding.PaddingBottom = UDim.new(0, 10)
+scriptsPadding.Parent = scriptsScroll
+
+-- =============================================================================
+-- 11. SETTINGS TAB CONTENT
+-- =============================================================================
+local settingsScroll = Instance.new("ScrollingFrame")
+settingsScroll.Size = UDim2.new(1, 0, 1, 0)
+settingsScroll.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundAlt
+settingsScroll.BorderSizePixel = 0
+settingsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+settingsScroll.ScrollBarThickness = 6
+settingsScroll.Parent = settingsContent
+
+local settingsCorner = Instance.new("UICorner")
+settingsCorner.CornerRadius = UDim.new(0, 8)
+settingsCorner.Parent = settingsScroll
+
+local settingsLayout = Instance.new("UIListLayout")
+settingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+settingsLayout.Padding = UDim.new(0, 8)
+settingsLayout.Parent = settingsScroll
+
+local settingsPadding = Instance.new("UIPadding")
+settingsPadding.PaddingLeft = UDim.new(0, 12)
+settingsPadding.PaddingTop = UDim.new(0, 12)
+settingsPadding.PaddingRight = UDim.new(0, 12)
+settingsPadding.PaddingBottom = UDim.new(0, 12)
+settingsPadding.Parent = settingsScroll
+
+-- =============================================================================
+-- 12. UI COMPONENT BUILDERS
 -- =============================================================================
 local function createLabel(parent, text, color, size)
 	local label = Instance.new("TextLabel")
@@ -609,7 +707,7 @@ local function createSectionHeader(parent, text, color)
 end
 
 -- Custom Input Prompt
-local function createInputPrompt(title, currentValue, callback)
+local function createInputPrompt(title, currentValue, callback, multiLine)
 	local overlay = Instance.new("Frame")
 	overlay.Size = UDim2.new(1, 0, 1, 0)
 	overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -617,15 +715,10 @@ local function createInputPrompt(title, currentValue, callback)
 	overlay.ZIndex = 1000
 	overlay.Parent = screenGui
 	
-	overlay.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			overlay:Destroy()
-		end
-	end)
-	
+	local promptHeight = multiLine and 250 or 140
 	local prompt = Instance.new("Frame")
-	prompt.Size = UDim2.new(0, 400, 0, 140)
-	prompt.Position = UDim2.new(0.5, -200, 0.5, -70)
+	prompt.Size = UDim2.new(0, 500, 0, promptHeight)
+	prompt.Position = UDim2.new(0.5, -250, 0.5, -promptHeight/2)
 	prompt.BackgroundColor3 = Themes[UISettings.ColorTheme].Background
 	prompt.BorderSizePixel = 0
 	prompt.ZIndex = 1001
@@ -646,17 +739,34 @@ local function createInputPrompt(title, currentValue, callback)
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.Parent = prompt
 	
-	local inputBox = Instance.new("TextBox")
-	inputBox.Size = UDim2.new(1, -24, 0, 34)
-	inputBox.Position = UDim2.new(0, 12, 0, 46)
-	inputBox.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundAlt
-	inputBox.Text = currentValue or ""
-	inputBox.TextColor3 = Themes[UISettings.ColorTheme].TextBright
-	inputBox.Font = Enum.Font.Code
-	inputBox.TextSize = 14
-	inputBox.ClearTextOnFocus = false
-	inputBox.ZIndex = 1002
-	inputBox.Parent = prompt
+	local inputBox
+	if multiLine then
+		inputBox = Instance.new("TextBox")
+		inputBox.Size = UDim2.new(1, -24, 0, 140)
+		inputBox.Position = UDim2.new(0, 12, 0, 46)
+		inputBox.BackgroundColor3 = Themes[UISettings.ColorTheme].CodeBg
+		inputBox.Text = currentValue or ""
+		inputBox.TextColor3 = Themes[UISettings.ColorTheme].TextBright
+		inputBox.Font = Enum.Font.Code
+		inputBox.TextSize = 13
+		inputBox.ClearTextOnFocus = false
+		inputBox.MultiLine = true
+		inputBox.TextWrapped = true
+		inputBox.ZIndex = 1002
+		inputBox.Parent = prompt
+	else
+		inputBox = Instance.new("TextBox")
+		inputBox.Size = UDim2.new(1, -24, 0, 34)
+		inputBox.Position = UDim2.new(0, 12, 0, 46)
+		inputBox.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundAlt
+		inputBox.Text = currentValue or ""
+		inputBox.TextColor3 = Themes[UISettings.ColorTheme].TextBright
+		inputBox.Font = Enum.Font.Code
+		inputBox.TextSize = 14
+		inputBox.ClearTextOnFocus = false
+		inputBox.ZIndex = 1002
+		inputBox.Parent = prompt
+	end
 	
 	local inputCorner = Instance.new("UICorner")
 	inputCorner.CornerRadius = UDim.new(0, 6)
@@ -666,7 +776,7 @@ local function createInputPrompt(title, currentValue, callback)
 	confirmBtn.Size = UDim2.new(0, 100, 0, 32)
 	confirmBtn.Position = UDim2.new(1, -110, 1, -38)
 	confirmBtn.BackgroundColor3 = Themes[UISettings.ColorTheme].SuccessDark
-	confirmBtn.Text = "Confirm"
+	confirmBtn.Text = "Save"
 	confirmBtn.TextColor3 = Themes[UISettings.ColorTheme].TextBright
 	confirmBtn.Font = Enum.Font.GothamBold
 	confirmBtn.TextSize = 14
@@ -730,7 +840,7 @@ local function createEditableValue(parent, name, value, onEdit, showDelete)
 	containerCorner.Parent = container
 	
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(0.32, 0, 1, 0)
+	nameLabel.Size = UDim2.new(0.3, 0, 1, 0)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Text = name
 	nameLabel.TextColor3 = Themes[UISettings.ColorTheme].TextBright
@@ -742,7 +852,7 @@ local function createEditableValue(parent, name, value, onEdit, showDelete)
 	
 	local typeLabel = Instance.new("TextLabel")
 	typeLabel.Size = UDim2.new(0, 50, 1, 0)
-	typeLabel.Position = UDim2.new(0.32, 5, 0, 0)
+	typeLabel.Position = UDim2.new(0.3, 5, 0, 0)
 	typeLabel.BackgroundTransparency = 1
 	typeLabel.Text = "[" .. string.sub(typeof(value), 1, 4) .. "]"
 	typeLabel.TextColor3 = Themes[UISettings.ColorTheme].TextDim
@@ -752,8 +862,8 @@ local function createEditableValue(parent, name, value, onEdit, showDelete)
 	typeLabel.Parent = container
 	
 	local valueBtn = Instance.new("TextButton")
-	valueBtn.Size = UDim2.new(0.68, -70, 1, -4)
-	valueBtn.Position = UDim2.new(0.32, 60, 0, 2)
+	valueBtn.Size = UDim2.new(0.7, -70, 1, -4)
+	valueBtn.Position = UDim2.new(0.3, 60, 0, 2)
 	valueBtn.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundAlt
 	valueBtn.Text = tostring(value)
 	valueBtn.TextColor3 = Themes[UISettings.ColorTheme].TextBright
@@ -831,85 +941,203 @@ local function createEditableValue(parent, name, value, onEdit, showDelete)
 end
 
 -- =============================================================================
--- 11. UI SETTINGS PANEL
+-- 13. SCRIPT EDITOR FUNCTIONS
 -- =============================================================================
-local settingsPanel = nil
-local settingsOpen = false
-
-local function createSettingsPanel()
-	if settingsPanel then
-		settingsPanel:Destroy()
-		settingsPanel = nil
-		settingsOpen = false
+local function scanScripts()
+	clearScroll(scriptsScroll)
+	
+	local character = player.Character
+	if not character then
+		createLabel(scriptsScroll, "❌ Character not found!", Themes[UISettings.ColorTheme].Danger, 24)
+		updateScrollCanvas(scriptsScroll, scriptsLayout)
 		return
 	end
 	
-	settingsPanel = Instance.new("Frame")
-	settingsPanel.Size = UDim2.new(0, 300, 0, 350)
-	settingsPanel.Position = UDim2.new(0.5, -150, 0.5, -175)
-	settingsPanel.BackgroundColor3 = Themes[UISettings.ColorTheme].Background
-	settingsPanel.BorderSizePixel = 0
-	settingsPanel.ZIndex = 500
-	settingsPanel.Parent = screenGui
+	createSectionHeader(scriptsScroll, "📜 Scripts in Character", Themes[UISettings.ColorTheme].Primary)
 	
-	local settingsCorner = Instance.new("UICorner")
-	settingsCorner.CornerRadius = UDim.new(0, 12)
-	settingsCorner.Parent = settingsPanel
+	local function findScripts(obj, depth)
+		if depth > 3 then return end -- Limit depth
+		
+		for _, child in ipairs(obj:GetChildren()) do
+			if child:IsA("Script") or child:IsA("LocalScript") or child:IsA("ModuleScript") then
+				local scriptType = child:IsA("LocalScript") and "LocalScript" or 
+								  child:IsA("ModuleScript") and "ModuleScript" or "Script"
+				
+				local container = Instance.new("Frame")
+				container.Size = UDim2.new(1, 0, 0, 50)
+				container.BackgroundColor3 = Themes[UISettings.ColorTheme].Background
+				container.BorderSizePixel = 0
+				container.Parent = scriptsScroll
+				
+				local containerCorner = Instance.new("UICorner")
+				containerCorner.CornerRadius = UDim.new(0, 6)
+				containerCorner.Parent = container
+				
+				local nameLabel = Instance.new("TextLabel")
+				nameLabel.Size = UDim2.new(0.4, 0, 1, 0)
+				nameLabel.Position = UDim2.new(0, 10, 0, 0)
+				nameLabel.BackgroundTransparency = 1
+				nameLabel.Text = "📄 " .. child.Name
+				nameLabel.TextColor3 = Themes[UISettings.ColorTheme].TextBright
+				nameLabel.Font = Enum.Font.GothamBold
+				nameLabel.TextSize = 12
+				nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+				nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+				nameLabel.Parent = container
+				
+				local typeLabel = Instance.new("TextLabel")
+				typeLabel.Size = UDim2.new(0.3, 0, 1, 0)
+				typeLabel.Position = UDim2.new(0.4, 10, 0, 0)
+				typeLabel.BackgroundTransparency = 1
+				typeLabel.Text = "[" .. scriptType .. "]"
+				typeLabel.TextColor3 = Themes[UISettings.ColorTheme].TextDim
+				typeLabel.Font = Enum.Font.SourceSans
+				typeLabel.TextSize = 11
+				typeLabel.TextXAlignment = Enum.TextXAlignment.Left
+				typeLabel.Parent = container
+				
+				local editBtn = Instance.new("TextButton")
+				editBtn.Size = UDim2.new(0, 60, 1, -6)
+				editBtn.Position = UDim2.new(1, -130, 0, 3)
+				editBtn.BackgroundColor3 = Themes[UISettings.ColorTheme].Primary
+				editBtn.Text = "✎ Edit"
+				editBtn.TextColor3 = Themes[UISettings.ColorTheme].TextBright
+				editBtn.Font = Enum.Font.GothamBold
+				editBtn.TextSize = 11
+				editBtn.Parent = container
+				
+				local editCorner = Instance.new("UICorner")
+				editCorner.CornerRadius = UDim.new(0, 4)
+				editCorner.Parent = editBtn
+				
+				local viewBtn = Instance.new("TextButton")
+				viewBtn.Size = UDim2.new(0, 60, 1, -6)
+				viewBtn.Position = UDim2.new(1, -66, 0, 3)
+				viewBtn.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundHover
+				viewBtn.Text = "👁 View"
+				viewBtn.TextColor3 = Themes[UISettings.ColorTheme].Text
+				viewBtn.Font = Enum.Font.GothamBold
+				viewBtn.TextSize = 11
+				viewBtn.Parent = container
+				
+				local viewCorner = Instance.new("UICorner")
+				viewCorner.CornerRadius = UDim.new(0, 4)
+				viewCorner.Parent = viewBtn
+				
+				editBtn.MouseButton1Click:Connect(function()
+					local source = child.Source or ""
+					createInputPrompt("Editing: " .. child.Name, source, function(newSource)
+						if newSource then
+							child.Source = newSource
+							setStatus("✅ Updated script: " .. child.Name, Themes[UISettings.ColorTheme].Success)
+							scanScripts()
+						end
+					end, true)
+				end)
+				
+				viewBtn.MouseButton1Click:Connect(function()
+					local source = child.Source or ""
+					createInputPrompt("Viewing: " .. child.Name, source, function()
+						-- Read-only, just close
+					end, true)
+				end)
+			end
+			
+			-- Recurse into children
+			findScripts(child, depth + 1)
+		end
+	end
 	
-	local settingsTitle = Instance.new("TextLabel")
-	settingsTitle.Size = UDim2.new(1, 0, 0, 40)
-	settingsTitle.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundAlt
-	settingsTitle.Text = "⚙ UI Settings"
-	settingsTitle.TextColor3 = Themes[UISettings.ColorTheme].TextBright
-	settingsTitle.Font = Enum.Font.GothamBold
-	settingsTitle.TextSize = 16
-	settingsTitle.Parent = settingsPanel
+	findScripts(character, 0)
 	
-	local settingsCorner2 = Instance.new("UICorner")
-	settingsCorner2.CornerRadius = UDim.new(0, 12)
-	settingsCorner2.Parent = settingsTitle
+	-- Also check player scripts
+	createSectionHeader(scriptsScroll, "📜 Scripts in Player", Themes[UISettings.ColorTheme].Warning)
 	
-	local settingsClose = Instance.new("TextButton")
-	settingsClose.Size = UDim2.new(0, 28, 0, 28)
-	settingsClose.Position = UDim2.new(1, -36, 0, 6)
-	settingsClose.BackgroundColor3 = Themes[UISettings.ColorTheme].DangerDark
-	settingsClose.Text = "✕"
-	settingsClose.TextColor3 = Themes[UISettings.ColorTheme].TextBright
-	settingsClose.Font = Enum.Font.GothamBold
-	settingsClose.TextSize = 14
-	settingsClose.ZIndex = 501
-	settingsClose.Parent = settingsPanel
+	local playerScripts = player:GetChildren()
+	local hasPlayerScripts = false
+	for _, child in ipairs(playerScripts) do
+		if child:IsA("Script") or child:IsA("LocalScript") or child:IsA("ModuleScript") then
+			hasPlayerScripts = true
+			local scriptType = child:IsA("LocalScript") and "LocalScript" or 
+							  child:IsA("ModuleScript") and "ModuleScript" or "Script"
+			
+			local container = Instance.new("Frame")
+			container.Size = UDim2.new(1, 0, 0, 40)
+			container.BackgroundColor3 = Themes[UISettings.ColorTheme].Background
+			container.BorderSizePixel = 0
+			container.Parent = scriptsScroll
+			
+			local containerCorner = Instance.new("UICorner")
+			containerCorner.CornerRadius = UDim.new(0, 6)
+			containerCorner.Parent = container
+			
+			local nameLabel = Instance.new("TextLabel")
+			nameLabel.Size = UDim2.new(0.5, 0, 1, 0)
+			nameLabel.Position = UDim2.new(0, 10, 0, 0)
+			nameLabel.BackgroundTransparency = 1
+			nameLabel.Text = "📄 " .. child.Name
+			nameLabel.TextColor3 = Themes[UISettings.ColorTheme].TextBright
+			nameLabel.Font = Enum.Font.GothamBold
+			nameLabel.TextSize = 12
+			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+			nameLabel.Parent = container
+			
+			local typeLabel = Instance.new("TextLabel")
+			typeLabel.Size = UDim2.new(0.3, 0, 1, 0)
+			typeLabel.Position = UDim2.new(0.5, 10, 0, 0)
+			typeLabel.BackgroundTransparency = 1
+			typeLabel.Text = "[" .. scriptType .. "]"
+			typeLabel.TextColor3 = Themes[UISettings.ColorTheme].TextDim
+			typeLabel.Font = Enum.Font.SourceSans
+			typeLabel.TextSize = 11
+			typeLabel.TextXAlignment = Enum.TextXAlignment.Left
+			typeLabel.Parent = container
+			
+			local editBtn = Instance.new("TextButton")
+			editBtn.Size = UDim2.new(0, 60, 1, -6)
+			editBtn.Position = UDim2.new(1, -66, 0, 3)
+			editBtn.BackgroundColor3 = Themes[UISettings.ColorTheme].Primary
+			editBtn.Text = "✎ Edit"
+			editBtn.TextColor3 = Themes[UISettings.ColorTheme].TextBright
+			editBtn.Font = Enum.Font.GothamBold
+			editBtn.TextSize = 11
+			editBtn.Parent = container
+			
+			local editCorner = Instance.new("UICorner")
+			editCorner.CornerRadius = UDim.new(0, 4)
+			editCorner.Parent = editBtn
+			
+			editBtn.MouseButton1Click:Connect(function()
+				local source = child.Source or ""
+				createInputPrompt("Editing: " .. child.Name, source, function(newSource)
+					if newSource then
+						child.Source = newSource
+						setStatus("✅ Updated script: " .. child.Name, Themes[UISettings.ColorTheme].Success)
+						scanScripts()
+					end
+				end, true)
+			end)
+		end
+	end
 	
-	local settingsCloseCorner = Instance.new("UICorner")
-	settingsCloseCorner.CornerRadius = UDim.new(0, 6)
-	settingsCloseCorner.Parent = settingsClose
+	if not hasPlayerScripts then
+		createLabel(scriptsScroll, "  (No scripts in player)", Themes[UISettings.ColorTheme].TextDim, 22)
+	end
 	
-	local settingsScroll = Instance.new("ScrollingFrame")
-	settingsScroll.Size = UDim2.new(1, -20, 1, -60)
-	settingsScroll.Position = UDim2.new(0, 10, 0, 50)
-	settingsScroll.BackgroundTransparency = 1
-	settingsScroll.CanvasSize = UDim2.new(0, 0, 0, 400)
-	settingsScroll.ScrollBarThickness = 4
-	settingsScroll.Parent = settingsPanel
-	
-	local settingsLayout = Instance.new("UIListLayout")
-	settingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	settingsLayout.Padding = UDim.new(0, 8)
-	settingsLayout.Parent = settingsScroll
+	updateScrollCanvas(scriptsScroll, scriptsLayout)
+end
+
+-- =============================================================================
+-- 14. BUILD SETTINGS TAB
+-- =============================================================================
+local function buildSettingsTab()
+	clearScroll(settingsScroll)
 	
 	-- Theme selector
-	local themeLabel = Instance.new("TextLabel")
-	themeLabel.Size = UDim2.new(1, 0, 0, 24)
-	themeLabel.BackgroundTransparency = 1
-	themeLabel.Text = "Theme:"
-	themeLabel.TextColor3 = Themes[UISettings.ColorTheme].Text
-	themeLabel.Font = Enum.Font.GothamBold
-	themeLabel.TextSize = 13
-	themeLabel.TextXAlignment = Enum.TextXAlignment.Left
-	themeLabel.Parent = settingsScroll
+	createSectionHeader(settingsScroll, "🎨 Theme", Themes[UISettings.ColorTheme].Primary)
 	
 	local themeContainer = Instance.new("Frame")
-	themeContainer.Size = UDim2.new(1, 0, 0, 30)
+	themeContainer.Size = UDim2.new(1, 0, 0, 34)
 	themeContainer.BackgroundTransparency = 1
 	themeContainer.Parent = settingsScroll
 	
@@ -932,98 +1160,133 @@ local function createSettingsPanel()
 		btn.MouseButton1Click:Connect(function()
 			UISettings.ColorTheme = themeName
 			applyTheme()
-			settingsPanel:Destroy()
-			settingsPanel = nil
-			settingsOpen = false
-			createSettingsPanel()
+			buildSettingsTab()
+			setStatus("🎨 Theme changed to: " .. themeName, Themes[UISettings.ColorTheme].Success)
 		end)
 	end
 	
-	-- Scale slider
-	local scaleLabel = Instance.new("TextLabel")
-	scaleLabel.Size = UDim2.new(1, 0, 0, 24)
-	scaleLabel.BackgroundTransparency = 1
-	scaleLabel.Text = "Scale: " .. string.format("%.1f", UISettings.Scale)
-	scaleLabel.TextColor3 = Themes[UISettings.ColorTheme].Text
-	scaleLabel.Font = Enum.Font.GothamBold
-	scaleLabel.TextSize = 13
-	scaleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	scaleLabel.Parent = settingsScroll
+	-- Scale
+	createSectionHeader(settingsScroll, "📏 Scale: " .. string.format("%.1f", UISettings.Scale), Themes[UISettings.ColorTheme].Warning)
 	
-	local scaleSlider = Instance.new("Frame")
-	scaleSlider.Size = UDim2.new(1, 0, 0, 20)
-	scaleSlider.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundAlt
-	scaleSlider.Parent = settingsScroll
+	local scaleContainer = Instance.new("Frame")
+	scaleContainer.Size = UDim2.new(1, 0, 0, 24)
+	scaleContainer.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundAlt
+	scaleContainer.Parent = settingsScroll
 	
 	local scaleCorner = Instance.new("UICorner")
 	scaleCorner.CornerRadius = UDim.new(0, 4)
-	scaleCorner.Parent = scaleSlider
+	scaleCorner.Parent = scaleContainer
 	
 	local scaleFill = Instance.new("Frame")
-	scaleFill.Size = UDim2.new(UISettings.Scale, 0, 1, 0)
+	scaleFill.Size = UDim2.new((UISettings.Scale - 0.5) / 1.5, 0, 1, 0)
 	scaleFill.BackgroundColor3 = Themes[UISettings.ColorTheme].Primary
 	scaleFill.BorderSizePixel = 0
-	scaleFill.Parent = scaleSlider
+	scaleFill.Parent = scaleContainer
 	
 	local scaleCorner2 = Instance.new("UICorner")
 	scaleCorner2.CornerRadius = UDim.new(0, 4)
 	scaleCorner2.Parent = scaleFill
 	
-	-- Opacity slider
-	local opacityLabel = Instance.new("TextLabel")
-	opacityLabel.Size = UDim2.new(1, 0, 0, 24)
-	opacityLabel.BackgroundTransparency = 1
-	opacityLabel.Text = "Opacity: " .. string.format("%.0f", UISettings.Opacity * 100) .. "%"
-	opacityLabel.TextColor3 = Themes[UISettings.ColorTheme].Text
-	opacityLabel.Font = Enum.Font.GothamBold
-	opacityLabel.TextSize = 13
-	opacityLabel.TextXAlignment = Enum.TextXAlignment.Left
-	opacityLabel.Parent = settingsScroll
+	local scaleButtons = Instance.new("Frame")
+	scaleButtons.Size = UDim2.new(1, 0, 0, 24)
+	scaleButtons.Position = UDim2.new(0, 0, 0, 28)
+	scaleButtons.BackgroundTransparency = 1
+	scaleButtons.Parent = settingsScroll
 	
-	local opacitySlider = Instance.new("Frame")
-	opacitySlider.Size = UDim2.new(1, 0, 0, 20)
-	opacitySlider.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundAlt
-	opacitySlider.Parent = settingsScroll
+	local scales = {"0.5", "0.75", "1.0", "1.25", "1.5", "2.0"}
+	for i, s in ipairs(scales) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(0.15, 0, 1, 0)
+		btn.Position = UDim2.new((i-1) * 0.166, 0, 0, 0)
+		btn.BackgroundColor3 = UISettings.Scale == tonumber(s) and Themes[UISettings.ColorTheme].Primary or Themes[UISettings.ColorTheme].BackgroundHover
+		btn.Text = s
+		btn.TextColor3 = Themes[UISettings.ColorTheme].TextBright
+		btn.Font = Enum.Font.GothamBold
+		btn.TextSize = 11
+		btn.Parent = scaleButtons
+		
+		local btnCorner = Instance.new("UICorner")
+		btnCorner.CornerRadius = UDim.new(0, 4)
+		btnCorner.Parent = btn
+		
+		btn.MouseButton1Click:Connect(function()
+			UISettings.Scale = tonumber(s)
+			applyTheme()
+			buildSettingsTab()
+			setStatus("📏 Scale set to: " .. s, Themes[UISettings.ColorTheme].Success)
+		end)
+	end
+	
+	-- Opacity
+	createSectionHeader(settingsScroll, "👻 Opacity: " .. string.format("%.0f", UISettings.Opacity * 100) .. "%", Themes[UISettings.ColorTheme].Warning)
+	
+	local opacityContainer = Instance.new("Frame")
+	opacityContainer.Size = UDim2.new(1, 0, 0, 24)
+	opacityContainer.BackgroundColor3 = Themes[UISettings.ColorTheme].BackgroundAlt
+	opacityContainer.Parent = settingsScroll
 	
 	local opacityCorner = Instance.new("UICorner")
 	opacityCorner.CornerRadius = UDim.new(0, 4)
-	opacityCorner.Parent = opacitySlider
+	opacityCorner.Parent = opacityContainer
 	
 	local opacityFill = Instance.new("Frame")
 	opacityFill.Size = UDim2.new(UISettings.Opacity, 0, 1, 0)
 	opacityFill.BackgroundColor3 = Themes[UISettings.ColorTheme].Primary
 	opacityFill.BorderSizePixel = 0
-	opacityFill.Parent = opacitySlider
+	opacityFill.Parent = opacityContainer
 	
 	local opacityCorner2 = Instance.new("UICorner")
 	opacityCorner2.CornerRadius = UDim.new(0, 4)
 	opacityCorner2.Parent = opacityFill
 	
-	-- Toggle buttons
-	local toggleLabel = Instance.new("TextLabel")
-	toggleLabel.Size = UDim2.new(1, 0, 0, 24)
-	toggleLabel.BackgroundTransparency = 1
-	toggleLabel.Text = "UI Elements:"
-	toggleLabel.TextColor3 = Themes[UISettings.ColorTheme].Text
-	toggleLabel.Font = Enum.Font.GothamBold
-	toggleLabel.TextSize = 13
-	toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	toggleLabel.Parent = settingsScroll
+	local opacityButtons = Instance.new("Frame")
+	opacityButtons.Size = UDim2.new(1, 0, 0, 24)
+	opacityButtons.Position = UDim2.new(0, 0, 0, 28)
+	opacityButtons.BackgroundTransparency = 1
+	opacityButtons.Parent = settingsScroll
+	
+	local opacities = {"0.25", "0.5", "0.75", "1.0"}
+	for i, o in ipairs(opacities) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(0.23, 0, 1, 0)
+		btn.Position = UDim2.new((i-1) * 0.25, 0, 0, 0)
+		btn.BackgroundColor3 = UISettings.Opacity == tonumber(o) and Themes[UISettings.ColorTheme].Primary or Themes[UISettings.ColorTheme].BackgroundHover
+		btn.Text = string.format("%.0f", tonumber(o) * 100) .. "%"
+		btn.TextColor3 = Themes[UISettings.ColorTheme].TextBright
+		btn.Font = Enum.Font.GothamBold
+		btn.TextSize = 11
+		btn.Parent = opacityButtons
+		
+		local btnCorner = Instance.new("UICorner")
+		btnCorner.CornerRadius = UDim.new(0, 4)
+		btnCorner.Parent = btn
+		
+		btn.MouseButton1Click:Connect(function()
+			UISettings.Opacity = tonumber(o)
+			applyTheme()
+			buildSettingsTab()
+			setStatus("👻 Opacity set to: " .. string.format("%.0f", tonumber(o) * 100) .. "%", Themes[UISettings.ColorTheme].Success)
+		end)
+	end
+	
+	-- UI Toggles
+	createSectionHeader(settingsScroll, "🔘 UI Elements", Themes[UISettings.ColorTheme].Success)
 	
 	local toggleContainer = Instance.new("Frame")
-	toggleContainer.Size = UDim2.new(1, 0, 0, 30)
+	toggleContainer.Size = UDim2.new(1, 0, 0, 60)
 	toggleContainer.BackgroundTransparency = 1
 	toggleContainer.Parent = settingsScroll
 	
 	local toggles = {
 		{name = "Status Bar", key = "ShowStatusBar"},
 		{name = "Tabs", key = "ShowTabs"},
+		{name = "Title Bar", key = "ShowTitleBar"},
 	}
 	
 	for i, toggle in ipairs(toggles) do
 		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.new(0.48, 0, 1, -4)
-		btn.Position = UDim2.new(i == 1 and 0 or 0.52, 0, 0, 2)
+		btn.Size = UDim2.new(0.32, 0, 0.45, 0)
+		btn.Position = UDim2.new((i-1) * 0.34, 0, 0, 0)
 		btn.BackgroundColor3 = UISettings[toggle.key] and Themes[UISettings.ColorTheme].SuccessDark or Themes[UISettings.ColorTheme].DangerDark
 		btn.Text = (UISettings[toggle.key] and "✅ " or "❌ ") .. toggle.name
 		btn.TextColor3 = Themes[UISettings.ColorTheme].TextBright
@@ -1038,77 +1301,43 @@ local function createSettingsPanel()
 		btn.MouseButton1Click:Connect(function()
 			UISettings[toggle.key] = not UISettings[toggle.key]
 			applyTheme()
-			settingsPanel:Destroy()
-			settingsPanel = nil
-			settingsOpen = false
-			createSettingsPanel()
+			buildSettingsTab()
+			setStatus("🔘 Toggled: " .. toggle.name, Themes[UISettings.ColorTheme].Success)
 		end)
 	end
 	
-	settingsClose.MouseButton1Click:Connect(function()
-		settingsPanel:Destroy()
-		settingsPanel = nil
-		settingsOpen = false
+	-- Reset button
+	local resetBtn = Instance.new("TextButton")
+	resetBtn.Size = UDim2.new(1, 0, 0, 40)
+	resetBtn.Position = UDim2.new(0, 0, 1, -50)
+	resetBtn.BackgroundColor3 = Themes[UISettings.ColorTheme].Warning
+	resetBtn.Text = "🔄 Reset All Settings"
+	resetBtn.TextColor3 = Themes[UISettings.ColorTheme].TextBright
+	resetBtn.Font = Enum.Font.GothamBold
+	resetBtn.TextSize = 14
+	resetBtn.Parent = settingsScroll
+	
+	local resetCorner = Instance.new("UICorner")
+	resetCorner.CornerRadius = UDim.new(0, 6)
+	resetCorner.Parent = resetBtn
+	
+	resetBtn.MouseButton1Click:Connect(function()
+		UISettings.Scale = 1.0
+		UISettings.Opacity = 1.0
+		UISettings.ColorTheme = "Dark"
+		UISettings.ShowStatusBar = true
+		UISettings.ShowTabs = true
+		UISettings.ShowTitleBar = true
+		applyTheme()
+		buildSettingsTab()
+		setStatus("🔄 Settings reset to default!", Themes[UISettings.ColorTheme].Success)
 	end)
 	
-	settingsOpen = true
+	updateScrollCanvas(settingsScroll, settingsLayout)
 end
 
 -- =============================================================================
--- 12. THEME APPLICATION
--- =============================================================================
-local function applyTheme()
-	local theme = Themes[UISettings.ColorTheme]
-	
-	-- Apply theme to main frame
-	mainFrame.BackgroundColor3 = theme.Background
-	mainFrame.Size = UDim2.new(0, UISettings.Size.Width * UISettings.Scale, 0, UISettings.Size.Height * UISettings.Scale)
-	mainFrame.Position = UDim2.new(UISettings.Position.X, -UISettings.Size.Width * UISettings.Scale / 2, UISettings.Position.Y, -UISettings.Size.Height * UISettings.Scale / 2)
-	mainFrame.BackgroundTransparency = 1 - UISettings.Opacity
-	
-	-- Title bar
-	titleBar.BackgroundColor3 = theme.BackgroundAlt
-	titleIcon.TextColor3 = theme.Primary
-	titleText.TextColor3 = theme.TextBright
-	
-	-- Status bar
-	statusBar.BackgroundColor3 = theme.BackgroundAlt
-	statusBar.Visible = UISettings.ShowStatusBar
-	statusText.TextColor3 = theme.Text
-	
-	-- Tab container
-	tabContainer.Visible = UISettings.ShowTabs
-	tabContainer.BackgroundColor3 = theme.BackgroundAlt
-	
-	-- Update all child elements recursively
-	local function updateChildren(parent)
-		for _, child in ipairs(parent:GetChildren()) do
-			if child:IsA("TextLabel") then
-				-- Keep special colors
-			elseif child:IsA("TextButton") then
-				if child ~= closeButton and child ~= minimizeBtn and child ~= settingsBtn then
-					-- Keep button colors as they are set individually
-				end
-			elseif child:IsA("Frame") then
-				if child ~= mainFrame and child ~= titleBar and child ~= statusBar and child ~= tabContainer then
-					if child.BackgroundColor3 ~= Color3.fromRGB(0, 0, 0) and child.BackgroundTransparency < 0.5 then
-						child.BackgroundColor3 = theme.BackgroundAlt
-					end
-				end
-				updateChildren(child)
-			end
-		end
-	end
-	
-	updateChildren(mainFrame)
-	
-	-- Update open button
-	openButton.BackgroundColor3 = theme.BackgroundAlt
-	openButton.TextColor3 = theme.TextBright
-end
-
--- =============================================================================
--- 13. SCAN FUNCTIONS
+-- 15. SCAN FUNCTIONS
 -- =============================================================================
 local function clearScroll(frame)
 	for _, child in ipairs(frame:GetChildren()) do
@@ -1149,7 +1378,7 @@ local function scanTool()
 	
 	createSectionHeader(toolPropsScroll, "📦 Basic Properties", Themes[UISettings.ColorTheme].Primary)
 	
-	local basicProps = {"Name", "ClassName", "ToolTip", "Enabled", "CanBeDropped", "RequiresHandle"}
+	local basicProps = {"Name", "ClassName", "ToolTip", "Enabled", "CanBeDropped", "RequiresHandle", "TextureId"}
 	for _, prop in ipairs(basicProps) do
 		local success, val = pcall(function() return tool[prop] end)
 		if success and val ~= nil then
@@ -1329,15 +1558,17 @@ local function scanAllAttributes()
 end
 
 -- =============================================================================
--- 14. TAB SWITCHING
+-- 16. TAB SWITCHING
 -- =============================================================================
 local function switchTab(tab)
 	toolContent.Visible = (tab == "tool")
 	playerContent.Visible = (tab == "player")
 	attrContent.Visible = (tab == "attributes")
+	scriptsContent.Visible = (tab == "scripts")
+	settingsContent.Visible = (tab == "settings")
 	
-	local tabs = {toolTab, playerTab, attrTab}
-	local activeTab = {tool = 1, player = 2, attributes = 3}
+	local tabs = {toolTab, playerTab, attrTab, scriptsTab, settingsTab}
+	local activeTab = {tool = 1, player = 2, attributes = 3, scripts = 4, settings = 5}
 	
 	for i, btn in ipairs(tabs) do
 		if i == activeTab[tab] then
@@ -1352,18 +1583,23 @@ local function switchTab(tab)
 	if tab == "tool" then scanTool() end
 	if tab == "player" then scanPlayer() end
 	if tab == "attributes" then scanAllAttributes() end
+	if tab == "scripts" then scanScripts() end
+	if tab == "settings" then buildSettingsTab() end
 end
 
 toolTab.MouseButton1Click:Connect(function() switchTab("tool") end)
 playerTab.MouseButton1Click:Connect(function() switchTab("player") end)
 attrTab.MouseButton1Click:Connect(function() switchTab("attributes") end)
+scriptsTab.MouseButton1Click:Connect(function() switchTab("scripts") end)
+settingsTab.MouseButton1Click:Connect(function() switchTab("settings") end)
 
 -- =============================================================================
--- 15. BUTTON ACTIONS
+-- 17. BUTTON ACTIONS
 -- =============================================================================
 toolRefreshBtn.MouseButton1Click:Connect(scanTool)
 playerRefreshBtn.MouseButton1Click:Connect(scanPlayer)
 attrRefreshBtn.MouseButton1Click:Connect(scanAllAttributes)
+scriptsRefreshBtn.MouseButton1Click:Connect(scanScripts)
 
 toolDoubleBtn.MouseButton1Click:Connect(function()
 	local character = player.Character
@@ -1438,22 +1674,34 @@ attrAddBtn.MouseButton1Click:Connect(function()
 end)
 
 -- =============================================================================
--- 16. SETTINGS BUTTON
+-- 18. APPLY THEME
 -- =============================================================================
-settingsBtn.MouseButton1Click:Connect(function()
-	if settingsOpen then
-		if settingsPanel then
-			settingsPanel:Destroy()
-			settingsPanel = nil
-		end
-		settingsOpen = false
-	else
-		createSettingsPanel()
-	end
-end)
+function applyTheme()
+	local theme = Themes[UISettings.ColorTheme]
+	
+	mainFrame.BackgroundColor3 = theme.Background
+	mainFrame.Size = UDim2.new(0, UISettings.Size.Width * UISettings.Scale, 0, UISettings.Size.Height * UISettings.Scale)
+	mainFrame.Position = UDim2.new(UISettings.Position.X, -UISettings.Size.Width * UISettings.Scale / 2, UISettings.Position.Y, -UISettings.Size.Height * UISettings.Scale / 2)
+	mainFrame.BackgroundTransparency = 1 - UISettings.Opacity
+	
+	titleBar.BackgroundColor3 = theme.BackgroundAlt
+	titleBar.Visible = UISettings.ShowTitleBar
+	titleIcon.TextColor3 = theme.Primary
+	titleText.TextColor3 = theme.TextBright
+	
+	statusBar.BackgroundColor3 = theme.BackgroundAlt
+	statusBar.Visible = UISettings.ShowStatusBar
+	statusText.TextColor3 = theme.Text
+	
+	tabContainer.Visible = UISettings.ShowTabs
+	tabContainer.BackgroundColor3 = theme.BackgroundAlt
+	
+	openButton.BackgroundColor3 = theme.BackgroundAlt
+	openButton.TextColor3 = theme.TextBright
+end
 
 -- =============================================================================
--- 17. TOGGLE SYSTEM
+-- 19. TOGGLE SYSTEM
 -- =============================================================================
 local function toggleUI()
 	mainFrame.Visible = not mainFrame.Visible
@@ -1476,27 +1724,30 @@ UserInputService.InputBegan:Connect(function(input, processed)
 end)
 
 -- =============================================================================
--- 18. AUTO-REFRESH
+-- 20. AUTO-REFRESH
 -- =============================================================================
 local function onCharacterAdded()
 	task.wait(1)
 	if toolContent.Visible then scanTool() end
 	if playerContent.Visible then scanPlayer() end
 	if attrContent.Visible then scanAllAttributes() end
+	if scriptsContent.Visible then scanScripts() end
 end
 
 player.CharacterAdded:Connect(onCharacterAdded)
 
 -- =============================================================================
--- 19. INITIALIZATION
+-- 21. INITIALIZATION
 -- =============================================================================
 applyTheme()
 switchTab("tool")
-setStatus("🚀 Loaded! Click ⚙ to customize UI", Themes[UISettings.ColorTheme].Success)
+setStatus("🚀 Loaded! 5 tabs with full editing capabilities", Themes[UISettings.ColorTheme].Success)
 
-print("⚡ Advanced Modifier Suite v3.0 loaded!")
+print("⚡ Advanced Modifier Suite v4.0 loaded!")
 print("📌 Features:")
+print("  • 5 Tabs: Tools, Player, Attributes, Scripts, Settings")
 print("  • Click any value to edit")
-print("  • Press [M] or [Right Shift] to toggle")
-print("  • Click ⚙ to customize UI (theme, scale, opacity)")
+print("  • Edit LocalScripts, Scripts, and ModuleScripts")
+print("  • Full UI customization (theme, scale, opacity)")
 print("  • Add/delete attributes on the fly")
+print("  • Press [M] or [Right Shift] to toggle")
