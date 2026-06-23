@@ -1,24 +1,44 @@
+--[[
+    WORKING DUPE TOOL - Multiple duplication methods
+    Press [M] or [Right Shift] to toggle UI
+]]
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local mouse = player:GetMouse()
 
 -- Clear old UI
-local oldGui = playerGui:FindFirstChild("UnifiedModifierGui")
+local oldGui = playerGui:FindFirstChild("DupeToolGui")
 if oldGui then oldGui:Destroy() end
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "UnifiedModifierGui"
+screenGui.Name = "DupeToolGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 -- =============================================================================
--- MAIN FRAME
+-- DUPE STATE
+-- =============================================================================
+local dupeState = {
+    isDuplicating = false,
+    dupeCount = 0,
+    selectedMethod = "Method 1",
+    autoDupe = false,
+    fastMode = false,
+    dropItems = true,
+}
+
+-- =============================================================================
+-- MAIN UI FRAME
 -- =============================================================================
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 650, 0, 550)
-mainFrame.Position = UDim2.new(0.5, -325, 0.4, -275)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.Size = UDim2.new(0, 450, 0, 500)
+mainFrame.Position = UDim2.new(0.5, -225, 0.4, -250)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = true
 mainFrame.Parent = screenGui
@@ -27,12 +47,10 @@ local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 10)
 mainCorner.Parent = mainFrame
 
--- =============================================================================
--- TITLE BAR
--- =============================================================================
+-- Title Bar
 local titleBar = Instance.new("Frame")
 titleBar.Size = UDim2.new(1, 0, 0, 40)
-titleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+titleBar.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
 titleBar.BorderSizePixel = 0
 titleBar.Parent = mainFrame
 
@@ -44,16 +62,30 @@ local titleText = Instance.new("TextLabel")
 titleText.Size = UDim2.new(1, -80, 1, 0)
 titleText.Position = UDim2.new(0, 15, 0, 0)
 titleText.BackgroundTransparency = 1
-titleText.Text = "⚡ Advanced Modifier Suite"
+titleText.Text = "🔄 Dupe Tool v2.0"
 titleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleText.Font = Enum.Font.GothamBold
-titleText.TextSize = 16
+titleText.TextSize = 18
 titleText.TextXAlignment = Enum.TextXAlignment.Left
 titleText.Parent = titleBar
 
+-- Status indicator
+local statusDot = Instance.new("Frame")
+statusDot.Size = UDim2.new(0, 10, 0, 10)
+statusDot.Position = UDim2.new(1, -50, 0.5, -5)
+statusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+statusDot.BorderSizePixel = 0
+statusDot.Parent = titleBar
+
+local statusDotCorner = Instance.new("UICorner")
+statusDotCorner.CornerRadius = UDim.new(1, 0)
+statusDotCorner.Parent = statusDot
+
+-- Drag Detector
 local dragDetector = Instance.new("UIDragDetector")
 dragDetector.Parent = mainFrame
 
+-- Close Button
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 28, 0, 28)
 closeButton.Position = UDim2.new(1, -36, 0, 6)
@@ -68,11 +100,12 @@ local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = closeButton
 
+-- Re-open Button
 local openButton = Instance.new("TextButton")
 openButton.Size = UDim2.new(0, 130, 0, 38)
 openButton.Position = UDim2.new(1, -145, 1, -48)
 openButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-openButton.Text = "⚙️ Open Menu"
+openButton.Text = "🔄 Open Duper"
 openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 openButton.Font = Enum.Font.GothamBold
 openButton.TextSize = 14
@@ -101,1453 +134,651 @@ local statusText = Instance.new("TextLabel")
 statusText.Size = UDim2.new(1, -20, 1, 0)
 statusText.Position = UDim2.new(0, 10, 0, 0)
 statusText.BackgroundTransparency = 1
-statusText.Text = "✅ Ready - Click any value to edit"
+statusText.Text = "✅ Ready - Equip a tool and select a method"
 statusText.TextColor3 = Color3.fromRGB(100, 255, 100)
 statusText.Font = Enum.Font.SourceSans
-statusText.TextSize = 13
+statusText.TextSize = 12
 statusText.TextXAlignment = Enum.TextXAlignment.Left
 statusText.Parent = statusBar
 
 local function setStatus(text, color)
-	statusText.Text = text
-	if color then statusText.TextColor3 = color end
+    statusText.Text = text
+    if color then statusText.TextColor3 = color end
 end
 
 -- =============================================================================
--- TABS
+-- DUPE COUNTER
 -- =============================================================================
-local tabContainer = Instance.new("Frame")
-tabContainer.Size = UDim2.new(1, 0, 0, 40)
-tabContainer.Position = UDim2.new(0, 0, 0, 40)
-tabContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-tabContainer.BorderSizePixel = 0
-tabContainer.Parent = mainFrame
+local counterFrame = Instance.new("Frame")
+counterFrame.Size = UDim2.new(1, 0, 0, 30)
+counterFrame.Position = UDim2.new(0, 0, 0, 40)
+counterFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+counterFrame.BorderSizePixel = 0
+counterFrame.Parent = mainFrame
 
-local tabs = {}
-local tabNames = {"Tools", "Player", "Attributes", "Scripts"}
-local tabIcons = {"🔧", "👤", "✨", "📜"}
-local tabFrames = {}
+local counterLabel = Instance.new("TextLabel")
+counterLabel.Size = UDim2.new(1, 0, 1, 0)
+counterLabel.BackgroundTransparency = 1
+counterLabel.Text = "Duplicates: 0"
+counterLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+counterLabel.Font = Enum.Font.GothamBold
+counterLabel.TextSize = 16
+counterLabel.Parent = counterFrame
 
-for i, name in ipairs(tabNames) do
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0.25, -2, 1, -4)
-	btn.Position = UDim2.new((i-1) * 0.25, 0, 0, 2)
-	btn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-	btn.Text = tabIcons[i] .. " " .. name
-	btn.TextColor3 = Color3.fromRGB(180, 180, 190)
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 13
-	btn.BorderSizePixel = 0
-	btn.Parent = tabContainer
-	btn.Name = name .. "Tab"
-	
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = btn
-	
-	tabs[name] = btn
-	
-	local content = Instance.new("Frame")
-	content.Size = UDim2.new(1, -20, 1, -115)
-	content.Position = UDim2.new(0, 10, 0, 85)
-	content.BackgroundTransparency = 1
-	content.Visible = (i == 1)
-	content.Parent = mainFrame
-	content.Name = name .. "Content"
-	
-	tabFrames[name] = content
+-- =============================================================================
+-- METHOD SELECTOR
+-- =============================================================================
+local methodFrame = Instance.new("Frame")
+methodFrame.Size = UDim2.new(1, 0, 0, 45)
+methodFrame.Position = UDim2.new(0, 0, 0, 70)
+methodFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 23)
+methodFrame.BorderSizePixel = 0
+methodFrame.Parent = mainFrame
+
+local methodLabel = Instance.new("TextLabel")
+methodLabel.Size = UDim2.new(0.25, 0, 1, 0)
+methodLabel.Position = UDim2.new(0, 10, 0, 0)
+methodLabel.BackgroundTransparency = 1
+methodLabel.Text = "Method:"
+methodLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+methodLabel.Font = Enum.Font.GothamBold
+methodLabel.TextSize = 14
+methodLabel.TextXAlignment = Enum.TextXAlignment.Left
+methodLabel.Parent = methodFrame
+
+local methodDropdown = Instance.new("TextButton")
+methodDropdown.Size = UDim2.new(0.7, -10, 1, -6)
+methodDropdown.Position = UDim2.new(0.28, 0, 0, 3)
+methodDropdown.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+methodDropdown.Text = "Method 1: Basic Clone"
+methodDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+methodDropdown.Font = Enum.Font.GothamBold
+methodDropdown.TextSize = 13
+methodDropdown.Parent = methodFrame
+
+local methodCorner = Instance.new("UICorner")
+methodCorner.CornerRadius = UDim.new(0, 4)
+methodCorner.Parent = methodDropdown
+
+-- =============================================================================
+-- METHODS LIST
+-- =============================================================================
+local methods = {
+    {name = "Method 1: Basic Clone", desc = "Clones the tool and drops it"},
+    {name = "Method 2: Backpack Dupe", desc = "Duplicates from backpack inventory"},
+    {name = "Method 3: Attribute Dupe", desc = "Duplicates using attribute trick"},
+    {name = "Method 4: Server Lag Dupe", desc = "Exploits server delay"},
+    {name = "Method 5: Drop Dupe", desc = "Duplicates on drop"},
+    {name = "Method 6: Replication Dupe", desc = "Uses replication exploit"},
+    {name = "Method 7: Tool Clone Spam", desc = "Spams tool clones"},
+}
+
+local methodList = Instance.new("Frame")
+methodList.Size = UDim2.new(0, 280, 0, 180)
+methodList.Position = UDim2.new(0.5, -140, 0.5, -90)
+methodList.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+methodList.BorderSizePixel = 0
+methodList.Visible = false
+methodList.ZIndex = 50
+methodList.Parent = screenGui
+
+local methodListCorner = Instance.new("UICorner")
+methodListCorner.CornerRadius = UDim.new(0, 8)
+methodListCorner.Parent = methodList
+
+local methodListScroll = Instance.new("ScrollingFrame")
+methodListScroll.Size = UDim2.new(1, 0, 1, 0)
+methodListScroll.BackgroundTransparency = 1
+methodListScroll.CanvasSize = UDim2.new(0, 0, 0, #methods * 36)
+methodListScroll.ScrollBarThickness = 4
+methodListScroll.Parent = methodList
+
+local methodListLayout = Instance.new("UIListLayout")
+methodListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+methodListLayout.Padding = UDim.new(0, 2)
+methodListLayout.Parent = methodListScroll
+
+for i, method in ipairs(methods) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -4, 0, 32)
+    btn.Position = UDim2.new(0, 2, 0, (i-1) * 34)
+    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    btn.Text = method.name
+    btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 12
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.TextTruncate = Enum.TextTruncate.AtEnd
+    btn.Parent = methodListScroll
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 4)
+    btnCorner.Parent = btn
+    
+    btn.MouseButton1Click:Connect(function()
+        dupeState.selectedMethod = method.name
+        methodDropdown.Text = method.name
+        methodList.Visible = false
+        setStatus("✅ Selected: " .. method.name, Color3.fromRGB(100, 255, 100))
+    end)
 end
 
--- =============================================================================
--- HELPER FUNCTIONS
--- =============================================================================
-local function createLabel(parent, text, color, size)
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 0, size or 24)
-	label.BackgroundTransparency = 1
-	label.Text = text
-	label.TextColor3 = color or Color3.fromRGB(220, 220, 220)
-	label.Font = Enum.Font.Code
-	label.TextSize = 12
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextWrapped = true
-	label.Parent = parent
-	return label
-end
+methodDropdown.MouseButton1Click:Connect(function()
+    methodList.Visible = not methodList.Visible
+end)
 
-local function createSectionHeader(parent, text, color)
-	local header = Instance.new("TextLabel")
-	header.Size = UDim2.new(1, 0, 0, 28)
-	header.BackgroundTransparency = 1
-	header.Text = text
-	header.TextColor3 = color or Color3.fromRGB(100, 200, 255)
-	header.Font = Enum.Font.GothamBold
-	header.TextSize = 13
-	header.TextXAlignment = Enum.TextXAlignment.Left
-	header.Parent = parent
-	return header
-end
-
-local function clearScroll(frame)
-	for _, child in ipairs(frame:GetChildren()) do
-		if child:IsA("TextLabel") or child:IsA("Frame") or child:IsA("TextButton") then
-			child:Destroy()
-		end
-	end
-	frame.CanvasSize = UDim2.new(0, 0, 0, 0)
-end
-
-local function updateScrollCanvas(frame, layout)
-	frame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
-end
-
--- =============================================================================
--- INPUT PROMPT WITH ACTUAL EDITING
--- =============================================================================
-local function createInputPrompt(title, currentValue, callback, multiLine)
-	local overlay = Instance.new("Frame")
-	overlay.Size = UDim2.new(1, 0, 1, 0)
-	overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	overlay.BackgroundTransparency = 0.5
-	overlay.ZIndex = 1000
-	overlay.Parent = screenGui
-	
-	local promptHeight = multiLine and 350 or 160
-	local prompt = Instance.new("Frame")
-	prompt.Size = UDim2.new(0, 550, 0, promptHeight)
-	prompt.Position = UDim2.new(0.5, -275, 0.5, -promptHeight/2)
-	prompt.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-	prompt.BorderSizePixel = 0
-	prompt.ZIndex = 1001
-	prompt.Parent = overlay
-	
-	local promptCorner = Instance.new("UICorner")
-	promptCorner.CornerRadius = UDim.new(0, 10)
-	promptCorner.Parent = prompt
-	
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Size = UDim2.new(1, -24, 0, 32)
-	titleLabel.Position = UDim2.new(0, 12, 0, 8)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Text = title
-	titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.TextSize = 15
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = prompt
-	
-	local inputBox
-	if multiLine then
-		inputBox = Instance.new("TextBox")
-		inputBox.Size = UDim2.new(1, -24, 0, 230)
-		inputBox.Position = UDim2.new(0, 12, 0, 46)
-		inputBox.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
-		inputBox.Text = currentValue or ""
-		inputBox.TextColor3 = Color3.fromRGB(220, 220, 220)
-		inputBox.Font = Enum.Font.Code
-		inputBox.TextSize = 13
-		inputBox.ClearTextOnFocus = false
-		inputBox.MultiLine = true
-		inputBox.TextWrapped = true
-		inputBox.ZIndex = 1002
-		inputBox.Parent = prompt
-	else
-		inputBox = Instance.new("TextBox")
-		inputBox.Size = UDim2.new(1, -24, 0, 40)
-		inputBox.Position = UDim2.new(0, 12, 0, 46)
-		inputBox.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-		inputBox.Text = currentValue or ""
-		inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-		inputBox.Font = Enum.Font.Code
-		inputBox.TextSize = 16
-		inputBox.ClearTextOnFocus = false
-		inputBox.ZIndex = 1002
-		inputBox.Parent = prompt
-	end
-	
-	local inputCorner = Instance.new("UICorner")
-	inputCorner.CornerRadius = UDim.new(0, 6)
-	inputCorner.Parent = inputBox
-	
-	local confirmBtn = Instance.new("TextButton")
-	confirmBtn.Size = UDim2.new(0, 100, 0, 36)
-	confirmBtn.Position = UDim2.new(1, -110, 1, -42)
-	confirmBtn.BackgroundColor3 = Color3.fromRGB(35, 165, 90)
-	confirmBtn.Text = "Save"
-	confirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	confirmBtn.Font = Enum.Font.GothamBold
-	confirmBtn.TextSize = 14
-	confirmBtn.ZIndex = 1002
-	confirmBtn.Parent = prompt
-	
-	local confirmCorner = Instance.new("UICorner")
-	confirmCorner.CornerRadius = UDim.new(0, 6)
-	confirmCorner.Parent = confirmBtn
-	
-	local cancelBtn = Instance.new("TextButton")
-	cancelBtn.Size = UDim2.new(0, 80, 0, 36)
-	cancelBtn.Position = UDim2.new(1, -200, 1, -42)
-	cancelBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-	cancelBtn.Text = "Cancel"
-	cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	cancelBtn.Font = Enum.Font.GothamBold
-	cancelBtn.TextSize = 14
-	cancelBtn.ZIndex = 1002
-	cancelBtn.Parent = prompt
-	
-	local cancelCorner = Instance.new("UICorner")
-	cancelCorner.CornerRadius = UDim.new(0, 6)
-	cancelCorner.Parent = cancelBtn
-	
-	local function closePrompt(value)
-		overlay:Destroy()
-		if value ~= nil then
-			callback(value)
-		end
-	end
-	
-	confirmBtn.MouseButton1Click:Connect(function()
-		closePrompt(inputBox.Text)
-	end)
-	
-	cancelBtn.MouseButton1Click:Connect(function()
-		closePrompt(nil)
-	end)
-	
-	inputBox.FocusLost:Connect(function(enterPressed)
-		if enterPressed then
-			closePrompt(inputBox.Text)
-		end
-	end)
-	
-	task.wait(0.1)
-	inputBox:CaptureFocus()
-end
-
--- =============================================================================
--- BUILD TOOL TAB WITH WORKING ATTRIBUTE EDITING
--- =============================================================================
-local function buildToolTab()
-	local content = tabFrames["Tools"]
-	
-	for _, child in ipairs(content:GetChildren()) do
-		child:Destroy()
-	end
-	
-	local header = Instance.new("Frame")
-	header.Size = UDim2.new(1, 0, 0, 40)
-	header.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-	header.BorderSizePixel = 0
-	header.Parent = content
-	
-	local headerCorner = Instance.new("UICorner")
-	headerCorner.CornerRadius = UDim.new(0, 6)
-	headerCorner.Parent = header
-	
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(0.4, -10, 1, 0)
-	nameLabel.Position = UDim2.new(0, 12, 0, 0)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = "🔧 No Tool Equipped"
-	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextSize = 14
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-	nameLabel.Parent = header
-	
-	local refreshBtn = Instance.new("TextButton")
-	refreshBtn.Size = UDim2.new(0, 80, 1, -8)
-	refreshBtn.Position = UDim2.new(1, -90, 0, 4)
-	refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-	refreshBtn.Text = "🔄 Refresh"
-	refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	refreshBtn.Font = Enum.Font.GothamBold
-	refreshBtn.TextSize = 11
-	refreshBtn.Parent = header
-	
-	local refreshCorner = Instance.new("UICorner")
-	refreshCorner.CornerRadius = UDim.new(0, 4)
-	refreshCorner.Parent = refreshBtn
-	
-	local doubleBtn = Instance.new("TextButton")
-	doubleBtn.Size = UDim2.new(0, 90, 1, -8)
-	doubleBtn.Position = UDim2.new(1, -190, 0, 4)
-	doubleBtn.BackgroundColor3 = Color3.fromRGB(35, 165, 90)
-	doubleBtn.Text = "✖️2 Count"
-	doubleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	doubleBtn.Font = Enum.Font.GothamBold
-	doubleBtn.TextSize = 11
-	doubleBtn.Parent = header
-	
-	local doubleCorner = Instance.new("UICorner")
-	doubleCorner.CornerRadius = UDim.new(0, 4)
-	doubleCorner.Parent = doubleBtn
-	
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, 0, 1, -48)
-	scroll.Position = UDim2.new(0, 0, 0, 44)
-	scroll.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-	scroll.BorderSizePixel = 0
-	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	scroll.ScrollBarThickness = 6
-	scroll.Parent = content
-	
-	local scrollCorner = Instance.new("UICorner")
-	scrollCorner.CornerRadius = UDim.new(0, 6)
-	scrollCorner.Parent = scroll
-	
-	local layout = Instance.new("UIListLayout")
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 4)
-	layout.Parent = scroll
-	
-	local padding = Instance.new("UIPadding")
-	padding.PaddingLeft = UDim.new(0, 10)
-	padding.PaddingTop = UDim.new(0, 10)
-	padding.PaddingRight = UDim.new(0, 10)
-	padding.PaddingBottom = UDim.new(0, 10)
-	padding.Parent = scroll
-	
-	local function createEditableAttribute(parent, attrName, attrValue, targetObj)
-		local container = Instance.new("Frame")
-		container.Size = UDim2.new(1, 0, 0, 34)
-		container.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-		container.BorderSizePixel = 0
-		container.Parent = parent
-		
-		local containerCorner = Instance.new("UICorner")
-		containerCorner.CornerRadius = UDim.new(0, 4)
-		containerCorner.Parent = container
-		
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(0.3, 0, 1, 0)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.Text = attrName
-		nameLabel.TextColor3 = Color3.fromRGB(180, 180, 220)
-		nameLabel.Font = Enum.Font.GothamBold
-		nameLabel.TextSize = 12
-		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-		nameLabel.Parent = container
-		
-		local typeLabel = Instance.new("TextLabel")
-		typeLabel.Size = UDim2.new(0, 50, 1, 0)
-		typeLabel.Position = UDim2.new(0.3, 5, 0, 0)
-		typeLabel.BackgroundTransparency = 1
-		typeLabel.Text = "[" .. string.sub(typeof(attrValue), 1, 4) .. "]"
-		typeLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-		typeLabel.Font = Enum.Font.SourceSans
-		typeLabel.TextSize = 9
-		typeLabel.TextXAlignment = Enum.TextXAlignment.Left
-		typeLabel.Parent = container
-		
-		local valueBtn = Instance.new("TextButton")
-		valueBtn.Size = UDim2.new(0.7, -70, 1, -4)
-		valueBtn.Position = UDim2.new(0.3, 60, 0, 2)
-		valueBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-		valueBtn.Text = tostring(attrValue)
-		valueBtn.TextColor3 = Color3.fromRGB(255, 255, 200)
-		valueBtn.Font = Enum.Font.Code
-		valueBtn.TextSize = 12
-		valueBtn.TextXAlignment = Enum.TextXAlignment.Left
-		valueBtn.Parent = container
-		
-		local btnCorner = Instance.new("UICorner")
-		btnCorner.CornerRadius = UDim.new(0, 3)
-		btnCorner.Parent = valueBtn
-		
-		local editIcon = Instance.new("TextButton")
-		editIcon.Size = UDim2.new(0, 26, 1, -4)
-		editIcon.Position = UDim2.new(1, -30, 0, 2)
-		editIcon.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-		editIcon.Text = "✎"
-		editIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
-		editIcon.Font = Enum.Font.GothamBold
-		editIcon.TextSize = 14
-		editIcon.Parent = container
-		
-		local editCorner = Instance.new("UICorner")
-		editCorner.CornerRadius = UDim.new(0, 3)
-		editCorner.Parent = editIcon
-		
-		local deleteIcon = Instance.new("TextButton")
-		deleteIcon.Size = UDim2.new(0, 22, 1, -4)
-		deleteIcon.Position = UDim2.new(1, -56, 0, 2)
-		deleteIcon.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
-		deleteIcon.Text = "✕"
-		deleteIcon.TextColor3 = Color3.fromRGB(255, 100, 100)
-		deleteIcon.Font = Enum.Font.GothamBold
-		deleteIcon.TextSize = 11
-		deleteIcon.Parent = container
-		
-		local deleteCorner = Instance.new("UICorner")
-		deleteCorner.CornerRadius = UDim.new(0, 3)
-		deleteCorner.Parent = deleteIcon
-		
-		local function updateValue(newVal)
-			valueBtn.Text = tostring(newVal)
-			typeLabel.Text = "[" .. string.sub(typeof(newVal), 1, 4) .. "]"
-			targetObj:SetAttribute(attrName, newVal)
-			setStatus("✅ Updated '" .. attrName .. "' to: " .. tostring(newVal), Color3.fromRGB(100, 255, 100))
-			
-			valueBtn.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
-			task.wait(0.15)
-			valueBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-		end
-		
-		local function promptEdit()
-			local currentVal = valueBtn.Text
-			createInputPrompt("Edit '" .. attrName .. "'", currentVal, function(input)
-				if input and input ~= "" then
-					local num = tonumber(input)
-					if num ~= nil then
-						updateValue(num)
-					elseif input == "true" or input == "false" then
-						updateValue(input == "true")
-					else
-						updateValue(input)
-					end
-				end
-			end)
-		end
-		
-		valueBtn.MouseButton1Click:Connect(promptEdit)
-		editIcon.MouseButton1Click:Connect(promptEdit)
-		
-		deleteIcon.MouseButton1Click:Connect(function()
-			targetObj:SetAttribute(attrName, nil)
-			container:Destroy()
-			setStatus("🗑️ Deleted attribute: " .. attrName, Color3.fromRGB(255, 200, 100))
-			updateScrollCanvas(scroll, layout)
-		end)
-		
-		return container
-	end
-	
-	local function scanTool()
-		clearScroll(scroll)
-		
-		local character = player.Character
-		if not character then
-			createLabel(scroll, "❌ Character not found!", Color3.fromRGB(255, 100, 100), 24)
-			nameLabel.Text = "🔧 No Character"
-			updateScrollCanvas(scroll, layout)
-			setStatus("❌ Character not found!", Color3.fromRGB(255, 100, 100))
-			return
-		end
-		
-		local tool = character:FindFirstChildOfClass("Tool")
-		if not tool then
-			createLabel(scroll, "❌ No tool equipped!", Color3.fromRGB(255, 100, 100), 24)
-			nameLabel.Text = "🔧 No Tool Equipped"
-			updateScrollCanvas(scroll, layout)
-			setStatus("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
-			return
-		end
-		
-		nameLabel.Text = "🔧 " .. tool.Name
-		setStatus("✅ Scanned tool: " .. tool.Name, Color3.fromRGB(100, 255, 100))
-		
-		createSectionHeader(scroll, "📦 Basic Properties", Color3.fromRGB(100, 200, 255))
-		
-		local basicProps = {"Name", "ClassName", "ToolTip", "Enabled", "CanBeDropped", "RequiresHandle", "TextureId"}
-		for _, prop in ipairs(basicProps) do
-			local success, val = pcall(function() return tool[prop] end)
-			if success and val ~= nil then
-				createLabel(scroll, "  " .. prop .. ": " .. tostring(val), Color3.fromRGB(220, 220, 220), 22)
-			end
-		end
-		
-		local attributes = tool:GetAttributes()
-		if next(attributes) ~= nil then
-			createSectionHeader(scroll, "✨ Tool Attributes (Click to Edit)", Color3.fromRGB(100, 255, 150))
-			for name, value in pairs(attributes) do
-				createEditableAttribute(scroll, name, value, tool)
-			end
-		else
-			createLabel(scroll, "  (No custom attributes)", Color3.fromRGB(150, 150, 150), 22)
-		end
-		
-		-- Add attribute button
-		local addContainer = Instance.new("Frame")
-		addContainer.Size = UDim2.new(1, 0, 0, 34)
-		addContainer.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-		addContainer.BorderSizePixel = 0
-		addContainer.Parent = scroll
-		
-		local addContainerCorner = Instance.new("UICorner")
-		addContainerCorner.CornerRadius = UDim.new(0, 4)
-		addContainerCorner.Parent = addContainer
-		
-		local addBtn = Instance.new("TextButton")
-		addBtn.Size = UDim2.new(1, -20, 1, -4)
-		addBtn.Position = UDim2.new(0, 10, 0, 2)
-		addBtn.BackgroundColor3 = Color3.fromRGB(35, 165, 90)
-		addBtn.Text = "➕ Add New Attribute"
-		addBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		addBtn.Font = Enum.Font.GothamBold
-		addBtn.TextSize = 13
-		addBtn.Parent = addContainer
-		
-		local addCorner = Instance.new("UICorner")
-		addCorner.CornerRadius = UDim.new(0, 4)
-		addCorner.Parent = addBtn
-		
-		addBtn.MouseButton1Click:Connect(function()
-			createInputPrompt("Enter attribute name", "", function(name)
-				if name and name ~= "" then
-					createInputPrompt("Enter value for '" .. name .. "'", "1", function(value)
-						if value and value ~= "" then
-							local num = tonumber(value)
-							if num ~= nil then
-								tool:SetAttribute(name, num)
-							elseif value == "true" or value == "false" then
-								tool:SetAttribute(name, value == "true")
-							else
-								tool:SetAttribute(name, value)
-							end
-							setStatus("✅ Added attribute: " .. name .. " = " .. value, Color3.fromRGB(100, 255, 100))
-							scanTool()
-						end
-					end)
-				end
-			end)
-		end)
-		
-		updateScrollCanvas(scroll, layout)
-	end
-	
-	refreshBtn.MouseButton1Click:Connect(scanTool)
-	
-	doubleBtn.MouseButton1Click:Connect(function()
-		local character = player.Character
-		if not character then
-			setStatus("❌ Character not found!", Color3.fromRGB(255, 100, 100))
-			return
-		end
-		local tool = character:FindFirstChildOfClass("Tool")
-		if not tool then
-			setStatus("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
-			return
-		end
-		
-		local count = tool:GetAttribute("Count")
-		if count == nil then
-			tool:SetAttribute("Count", 1)
-			setStatus("✨ Created 'Count' attribute = 1", Color3.fromRGB(255, 200, 100))
-		elseif type(count) == "number" then
-			local doubled = count * 2
-			tool:SetAttribute("Count", doubled)
-			setStatus("✖️2 Count: " .. count .. " → " .. doubled, Color3.fromRGB(100, 255, 100))
-		else
-			setStatus("⚠️ 'Count' is not a number!", Color3.fromRGB(255, 200, 100))
-		end
-		scanTool()
-	end)
-	
-	scanTool()
-end
-
--- =============================================================================
--- BUILD PLAYER TAB
--- =============================================================================
-local function buildPlayerTab()
-	local content = tabFrames["Player"]
-	
-	for _, child in ipairs(content:GetChildren()) do
-		child:Destroy()
-	end
-	
-	local header = Instance.new("Frame")
-	header.Size = UDim2.new(1, 0, 0, 40)
-	header.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-	header.BorderSizePixel = 0
-	header.Parent = content
-	
-	local headerCorner = Instance.new("UICorner")
-	headerCorner.CornerRadius = UDim.new(0, 6)
-	headerCorner.Parent = header
-	
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(0.5, -10, 1, 0)
-	nameLabel.Position = UDim2.new(0, 12, 0, 0)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = "👤 " .. player.Name
-	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextSize = 14
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-	nameLabel.Parent = header
-	
-	local refreshBtn = Instance.new("TextButton")
-	refreshBtn.Size = UDim2.new(0, 80, 1, -8)
-	refreshBtn.Position = UDim2.new(1, -90, 0, 4)
-	refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-	refreshBtn.Text = "🔄 Refresh"
-	refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	refreshBtn.Font = Enum.Font.GothamBold
-	refreshBtn.TextSize = 11
-	refreshBtn.Parent = header
-	
-	local refreshCorner = Instance.new("UICorner")
-	refreshCorner.CornerRadius = UDim.new(0, 4)
-	refreshCorner.Parent = refreshBtn
-	
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, 0, 1, -48)
-	scroll.Position = UDim2.new(0, 0, 0, 44)
-	scroll.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-	scroll.BorderSizePixel = 0
-	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	scroll.ScrollBarThickness = 6
-	scroll.Parent = content
-	
-	local scrollCorner = Instance.new("UICorner")
-	scrollCorner.CornerRadius = UDim.new(0, 6)
-	scrollCorner.Parent = scroll
-	
-	local layout = Instance.new("UIListLayout")
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 4)
-	layout.Parent = scroll
-	
-	local padding = Instance.new("UIPadding")
-	padding.PaddingLeft = UDim.new(0, 10)
-	padding.PaddingTop = UDim.new(0, 10)
-	padding.PaddingRight = UDim.new(0, 10)
-	padding.PaddingBottom = UDim.new(0, 10)
-	padding.Parent = scroll
-	
-	local function createEditableAttribute(parent, attrName, attrValue, targetObj)
-		local container = Instance.new("Frame")
-		container.Size = UDim2.new(1, 0, 0, 34)
-		container.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-		container.BorderSizePixel = 0
-		container.Parent = parent
-		
-		local containerCorner = Instance.new("UICorner")
-		containerCorner.CornerRadius = UDim.new(0, 4)
-		containerCorner.Parent = container
-		
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(0.3, 0, 1, 0)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.Text = attrName
-		nameLabel.TextColor3 = Color3.fromRGB(180, 180, 220)
-		nameLabel.Font = Enum.Font.GothamBold
-		nameLabel.TextSize = 12
-		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-		nameLabel.Parent = container
-		
-		local typeLabel = Instance.new("TextLabel")
-		typeLabel.Size = UDim2.new(0, 50, 1, 0)
-		typeLabel.Position = UDim2.new(0.3, 5, 0, 0)
-		typeLabel.BackgroundTransparency = 1
-		typeLabel.Text = "[" .. string.sub(typeof(attrValue), 1, 4) .. "]"
-		typeLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-		typeLabel.Font = Enum.Font.SourceSans
-		typeLabel.TextSize = 9
-		typeLabel.TextXAlignment = Enum.TextXAlignment.Left
-		typeLabel.Parent = container
-		
-		local valueBtn = Instance.new("TextButton")
-		valueBtn.Size = UDim2.new(0.7, -70, 1, -4)
-		valueBtn.Position = UDim2.new(0.3, 60, 0, 2)
-		valueBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-		valueBtn.Text = tostring(attrValue)
-		valueBtn.TextColor3 = Color3.fromRGB(255, 255, 200)
-		valueBtn.Font = Enum.Font.Code
-		valueBtn.TextSize = 12
-		valueBtn.TextXAlignment = Enum.TextXAlignment.Left
-		valueBtn.Parent = container
-		
-		local btnCorner = Instance.new("UICorner")
-		btnCorner.CornerRadius = UDim.new(0, 3)
-		btnCorner.Parent = valueBtn
-		
-		local editIcon = Instance.new("TextButton")
-		editIcon.Size = UDim2.new(0, 26, 1, -4)
-		editIcon.Position = UDim2.new(1, -30, 0, 2)
-		editIcon.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-		editIcon.Text = "✎"
-		editIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
-		editIcon.Font = Enum.Font.GothamBold
-		editIcon.TextSize = 14
-		editIcon.Parent = container
-		
-		local editCorner = Instance.new("UICorner")
-		editCorner.CornerRadius = UDim.new(0, 3)
-		editCorner.Parent = editIcon
-		
-		local deleteIcon = Instance.new("TextButton")
-		deleteIcon.Size = UDim2.new(0, 22, 1, -4)
-		deleteIcon.Position = UDim2.new(1, -56, 0, 2)
-		deleteIcon.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
-		deleteIcon.Text = "✕"
-		deleteIcon.TextColor3 = Color3.fromRGB(255, 100, 100)
-		deleteIcon.Font = Enum.Font.GothamBold
-		deleteIcon.TextSize = 11
-		deleteIcon.Parent = container
-		
-		local deleteCorner = Instance.new("UICorner")
-		deleteCorner.CornerRadius = UDim.new(0, 3)
-		deleteCorner.Parent = deleteIcon
-		
-		local function updateValue(newVal)
-			valueBtn.Text = tostring(newVal)
-			typeLabel.Text = "[" .. string.sub(typeof(newVal), 1, 4) .. "]"
-			targetObj:SetAttribute(attrName, newVal)
-			setStatus("✅ Updated '" .. attrName .. "' to: " .. tostring(newVal), Color3.fromRGB(100, 255, 100))
-			
-			valueBtn.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
-			task.wait(0.15)
-			valueBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-		end
-		
-		local function promptEdit()
-			local currentVal = valueBtn.Text
-			createInputPrompt("Edit '" .. attrName .. "'", currentVal, function(input)
-				if input and input ~= "" then
-					local num = tonumber(input)
-					if num ~= nil then
-						updateValue(num)
-					elseif input == "true" or input == "false" then
-						updateValue(input == "true")
-					else
-						updateValue(input)
-					end
-				end
-			end)
-		end
-		
-		valueBtn.MouseButton1Click:Connect(promptEdit)
-		editIcon.MouseButton1Click:Connect(promptEdit)
-		
-		deleteIcon.MouseButton1Click:Connect(function()
-			targetObj:SetAttribute(attrName, nil)
-			container:Destroy()
-			setStatus("🗑️ Deleted attribute: " .. attrName, Color3.fromRGB(255, 200, 100))
-			updateScrollCanvas(scroll, layout)
-		end)
-		
-		return container
-	end
-	
-	local function scanPlayer()
-		clearScroll(scroll)
-		
-		local character = player.Character
-		if not character then
-			createLabel(scroll, "❌ Character not found!", Color3.fromRGB(255, 100, 100), 24)
-			updateScrollCanvas(scroll, layout)
-			setStatus("❌ Character not found!", Color3.fromRGB(255, 100, 100))
-			return
-		end
-		
-		setStatus("✅ Scanned player: " .. player.Name, Color3.fromRGB(100, 255, 100))
-		
-		createSectionHeader(scroll, "👤 Player Info", Color3.fromRGB(100, 200, 255))
-		createLabel(scroll, "  Name: " .. player.Name, Color3.fromRGB(220, 220, 220), 22)
-		createLabel(scroll, "  Display Name: " .. player.DisplayName, Color3.fromRGB(220, 220, 220), 22)
-		createLabel(scroll, "  User ID: " .. player.UserId, Color3.fromRGB(220, 220, 220), 22)
-		
-		createSectionHeader(scroll, "🧍 Character Info", Color3.fromRGB(255, 200, 100))
-		
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			createLabel(scroll, "  Health: " .. math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth), Color3.fromRGB(220, 220, 220), 22)
-			createLabel(scroll, "  Walk Speed: " .. humanoid.WalkSpeed, Color3.fromRGB(220, 220, 220), 22)
-			createLabel(scroll, "  Jump Power: " .. humanoid.JumpPower, Color3.fromRGB(220, 220, 220), 22)
-			createLabel(scroll, "  Max Health: " .. humanoid.MaxHealth, Color3.fromRGB(220, 220, 220), 22)
-		end
-		
-		createSectionHeader(scroll, "🔧 Equipped Tools", Color3.fromRGB(100, 255, 200))
-		local tools = character:GetChildren()
-		local hasTools = false
-		for _, obj in ipairs(tools) do
-			if obj:IsA("Tool") then
-				hasTools = true
-				createLabel(scroll, "  • " .. obj.Name, Color3.fromRGB(220, 220, 220), 22)
-			end
-		end
-		if not hasTools then
-			createLabel(scroll, "  (No tools equipped)", Color3.fromRGB(150, 150, 150), 22)
-		end
-		
-		local attributes = player:GetAttributes()
-		if next(attributes) ~= nil then
-			createSectionHeader(scroll, "✨ Player Attributes (Click to Edit)", Color3.fromRGB(100, 255, 150))
-			for name, value in pairs(attributes) do
-				createEditableAttribute(scroll, name, value, player)
-			end
-		end
-		
-		local charAttributes = character:GetAttributes()
-		if next(charAttributes) ~= nil then
-			createSectionHeader(scroll, "✨ Character Attributes (Click to Edit)", Color3.fromRGB(100, 255, 150))
-			for name, value in pairs(charAttributes) do
-				createEditableAttribute(scroll, name, value, character)
-			end
-		end
-		
-		updateScrollCanvas(scroll, layout)
-	end
-	
-	refreshBtn.MouseButton1Click:Connect(scanPlayer)
-	scanPlayer()
-end
-
--- =============================================================================
--- BUILD ATTRIBUTES TAB
--- =============================================================================
-local function buildAttributesTab()
-	local content = tabFrames["Attributes"]
-	
-	for _, child in ipairs(content:GetChildren()) do
-		child:Destroy()
-	end
-	
-	local header = Instance.new("Frame")
-	header.Size = UDim2.new(1, 0, 0, 40)
-	header.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-	header.BorderSizePixel = 0
-	header.Parent = content
-	
-	local headerCorner = Instance.new("UICorner")
-	headerCorner.CornerRadius = UDim.new(0, 6)
-	headerCorner.Parent = header
-	
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Size = UDim2.new(0.3, -10, 1, 0)
-	titleLabel.Position = UDim2.new(0, 12, 0, 0)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Text = "✨ All Attributes"
-	titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.TextSize = 14
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = header
-	
-	local targetBtn = Instance.new("TextButton")
-	targetBtn.Size = UDim2.new(0, 100, 1, -8)
-	targetBtn.Position = UDim2.new(1, -290, 0, 4)
-	targetBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-	targetBtn.Text = "📍 Player"
-	targetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	targetBtn.Font = Enum.Font.GothamBold
-	targetBtn.TextSize = 11
-	targetBtn.Parent = header
-	
-	local targetCorner = Instance.new("UICorner")
-	targetCorner.CornerRadius = UDim.new(0, 4)
-	targetCorner.Parent = targetBtn
-	
-	local addBtn = Instance.new("TextButton")
-	addBtn.Size = UDim2.new(0, 85, 1, -8)
-	addBtn.Position = UDim2.new(1, -196, 0, 4)
-	addBtn.BackgroundColor3 = Color3.fromRGB(35, 165, 90)
-	addBtn.Text = "➕ Add"
-	addBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	addBtn.Font = Enum.Font.GothamBold
-	addBtn.TextSize = 12
-	addBtn.Parent = header
-	
-	local addCorner = Instance.new("UICorner")
-	addCorner.CornerRadius = UDim.new(0, 4)
-	addCorner.Parent = addBtn
-	
-	local refreshBtn = Instance.new("TextButton")
-	refreshBtn.Size = UDim2.new(0, 80, 1, -8)
-	refreshBtn.Position = UDim2.new(1, -96, 0, 4)
-	refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-	refreshBtn.Text = "🔄 Refresh"
-	refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	refreshBtn.Font = Enum.Font.GothamBold
-	refreshBtn.TextSize = 11
-	refreshBtn.Parent = header
-	
-	local refreshCorner = Instance.new("UICorner")
-	refreshCorner.CornerRadius = UDim.new(0, 4)
-	refreshCorner.Parent = refreshBtn
-	
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, 0, 1, -48)
-	scroll.Position = UDim2.new(0, 0, 0, 44)
-	scroll.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-	scroll.BorderSizePixel = 0
-	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	scroll.ScrollBarThickness = 6
-	scroll.Parent = content
-	
-	local scrollCorner = Instance.new("UICorner")
-	scrollCorner.CornerRadius = UDim.new(0, 6)
-	scrollCorner.Parent = scroll
-	
-	local layout = Instance.new("UIListLayout")
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 4)
-	layout.Parent = scroll
-	
-	local padding = Instance.new("UIPadding")
-	padding.PaddingLeft = UDim.new(0, 10)
-	padding.PaddingTop = UDim.new(0, 10)
-	padding.PaddingRight = UDim.new(0, 10)
-	padding.PaddingBottom = UDim.new(0, 10)
-	padding.Parent = scroll
-	
-	local attrTarget = "player"
-	local targetOptions = {"Player", "Character", "Tool"}
-	
-	local function createEditableAttribute(parent, attrName, attrValue, targetObj)
-		local container = Instance.new("Frame")
-		container.Size = UDim2.new(1, 0, 0, 34)
-		container.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-		container.BorderSizePixel = 0
-		container.Parent = parent
-		
-		local containerCorner = Instance.new("UICorner")
-		containerCorner.CornerRadius = UDim.new(0, 4)
-		containerCorner.Parent = container
-		
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(0.3, 0, 1, 0)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.Text = attrName
-		nameLabel.TextColor3 = Color3.fromRGB(180, 180, 220)
-		nameLabel.Font = Enum.Font.GothamBold
-		nameLabel.TextSize = 12
-		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-		nameLabel.Parent = container
-		
-		local typeLabel = Instance.new("TextLabel")
-		typeLabel.Size = UDim2.new(0, 50, 1, 0)
-		typeLabel.Position = UDim2.new(0.3, 5, 0, 0)
-		typeLabel.BackgroundTransparency = 1
-		typeLabel.Text = "[" .. string.sub(typeof(attrValue), 1, 4) .. "]"
-		typeLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-		typeLabel.Font = Enum.Font.SourceSans
-		typeLabel.TextSize = 9
-		typeLabel.TextXAlignment = Enum.TextXAlignment.Left
-		typeLabel.Parent = container
-		
-		local valueBtn = Instance.new("TextButton")
-		valueBtn.Size = UDim2.new(0.7, -70, 1, -4)
-		valueBtn.Position = UDim2.new(0.3, 60, 0, 2)
-		valueBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-		valueBtn.Text = tostring(attrValue)
-		valueBtn.TextColor3 = Color3.fromRGB(255, 255, 200)
-		valueBtn.Font = Enum.Font.Code
-		valueBtn.TextSize = 12
-		valueBtn.TextXAlignment = Enum.TextXAlignment.Left
-		valueBtn.Parent = container
-		
-		local btnCorner = Instance.new("UICorner")
-		btnCorner.CornerRadius = UDim.new(0, 3)
-		btnCorner.Parent = valueBtn
-		
-		local editIcon = Instance.new("TextButton")
-		editIcon.Size = UDim2.new(0, 26, 1, -4)
-		editIcon.Position = UDim2.new(1, -30, 0, 2)
-		editIcon.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-		editIcon.Text = "✎"
-		editIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
-		editIcon.Font = Enum.Font.GothamBold
-		editIcon.TextSize = 14
-		editIcon.Parent = container
-		
-		local editCorner = Instance.new("UICorner")
-		editCorner.CornerRadius = UDim.new(0, 3)
-		editCorner.Parent = editIcon
-		
-		local deleteIcon = Instance.new("TextButton")
-		deleteIcon.Size = UDim2.new(0, 22, 1, -4)
-		deleteIcon.Position = UDim2.new(1, -56, 0, 2)
-		deleteIcon.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
-		deleteIcon.Text = "✕"
-		deleteIcon.TextColor3 = Color3.fromRGB(255, 100, 100)
-		deleteIcon.Font = Enum.Font.GothamBold
-		deleteIcon.TextSize = 11
-		deleteIcon.Parent = container
-		
-		local deleteCorner = Instance.new("UICorner")
-		deleteCorner.CornerRadius = UDim.new(0, 3)
-		deleteCorner.Parent = deleteIcon
-		
-		local function updateValue(newVal)
-			valueBtn.Text = tostring(newVal)
-			typeLabel.Text = "[" .. string.sub(typeof(newVal), 1, 4) .. "]"
-			targetObj:SetAttribute(attrName, newVal)
-			setStatus("✅ Updated '" .. attrName .. "' to: " .. tostring(newVal), Color3.fromRGB(100, 255, 100))
-			
-			valueBtn.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
-			task.wait(0.15)
-			valueBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-		end
-		
-		local function promptEdit()
-			local currentVal = valueBtn.Text
-			createInputPrompt("Edit '" .. attrName .. "'", currentVal, function(input)
-				if input and input ~= "" then
-					local num = tonumber(input)
-					if num ~= nil then
-						updateValue(num)
-					elseif input == "true" or input == "false" then
-						updateValue(input == "true")
-					else
-						updateValue(input)
-					end
-				end
-			end)
-		end
-		
-		valueBtn.MouseButton1Click:Connect(promptEdit)
-		editIcon.MouseButton1Click:Connect(promptEdit)
-		
-		deleteIcon.MouseButton1Click:Connect(function()
-			targetObj:SetAttribute(attrName, nil)
-			container:Destroy()
-			setStatus("🗑️ Deleted attribute: " .. attrName, Color3.fromRGB(255, 200, 100))
-			updateScrollCanvas(scroll, layout)
-		end)
-		
-		return container
-	end
-	
-	local function scanAllAttributes()
-		clearScroll(scroll)
-		
-		local targetObj = nil
-		local targetName = ""
-		
-		if attrTarget == "player" then
-			targetObj = player
-			targetName = "Player"
-		elseif attrTarget == "character" then
-			targetObj = player.Character
-			targetName = "Character"
-		elseif attrTarget == "tool" then
-			local char = player.Character
-			if char then
-				targetObj = char:FindFirstChildOfClass("Tool")
-				targetName = "Tool"
-			end
-		end
-		
-		if not targetObj then
-			createLabel(scroll, "❌ Target not found!", Color3.fromRGB(255, 100, 100), 24)
-			updateScrollCanvas(scroll, layout)
-			setStatus("❌ Target not found!", Color3.fromRGB(255, 100, 100))
-			return
-		end
-		
-		createSectionHeader(scroll, "📍 Target: " .. targetName, Color3.fromRGB(100, 200, 255))
-		createLabel(scroll, "  Name: " .. targetObj.Name, Color3.fromRGB(220, 220, 220), 22)
-		createLabel(scroll, "  Class: " .. targetObj.ClassName, Color3.fromRGB(220, 220, 220), 22)
-		
-		local attributes = targetObj:GetAttributes()
-		if next(attributes) ~= nil then
-			createSectionHeader(scroll, "✨ Attributes (Click to Edit)", Color3.fromRGB(100, 255, 150))
-			for name, value in pairs(attributes) do
-				createEditableAttribute(scroll, name, value, targetObj)
-			end
-		else
-			createLabel(scroll, "  (No attributes found)", Color3.fromRGB(150, 150, 150), 22)
-		end
-		
-		updateScrollCanvas(scroll, layout)
-	end
-	
-	refreshBtn.MouseButton1Click:Connect(scanAllAttributes)
-	
-	local targetIndex = 1
-	targetBtn.MouseButton1Click:Connect(function()
-		targetIndex = targetIndex % #targetOptions + 1
-		attrTarget = string.lower(targetOptions[targetIndex])
-		targetBtn.Text = "📍 " .. targetOptions[targetIndex]
-		scanAllAttributes()
-	end)
-	
-	addBtn.MouseButton1Click:Connect(function()
-		local targetObj = nil
-		if attrTarget == "player" then
-			targetObj = player
-		elseif attrTarget == "character" then
-			targetObj = player.Character
-		elseif attrTarget == "tool" then
-			local char = player.Character
-			if char then
-				targetObj = char:FindFirstChildOfClass("Tool")
-			end
-		end
-		
-		if not targetObj then
-			setStatus("❌ Target not found!", Color3.fromRGB(255, 100, 100))
-			return
-		end
-		
-		createInputPrompt("Enter attribute name", "", function(name)
-			if name and name ~= "" then
-				createInputPrompt("Enter value for '" .. name .. "'", "1", function(value)
-					if value and value ~= "" then
-						local num = tonumber(value)
-						if num ~= nil then
-							targetObj:SetAttribute(name, num)
-						elseif value == "true" or value == "false" then
-							targetObj:SetAttribute(name, value == "true")
-						else
-							targetObj:SetAttribute(name, value)
-						end
-						setStatus("✅ Added attribute: " .. name .. " = " .. value, Color3.fromRGB(100, 255, 100))
-						scanAllAttributes()
-					end
-				end)
-			end
-		end)
-	end)
-	
-	scanAllAttributes()
-end
-
--- =============================================================================
--- BUILD SCRIPTS TAB - ACTUALLY FINDS SCRIPTS
--- =============================================================================
-local function buildScriptsTab()
-	local content = tabFrames["Scripts"]
-	
-	for _, child in ipairs(content:GetChildren()) do
-		child:Destroy()
-	end
-	
-	local header = Instance.new("Frame")
-	header.Size = UDim2.new(1, 0, 0, 40)
-	header.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-	header.BorderSizePixel = 0
-	header.Parent = content
-	
-	local headerCorner = Instance.new("UICorner")
-	headerCorner.CornerRadius = UDim.new(0, 6)
-	headerCorner.Parent = header
-	
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Size = UDim2.new(0.5, -10, 1, 0)
-	titleLabel.Position = UDim2.new(0, 12, 0, 0)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Text = "📜 Script Editor"
-	titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.TextSize = 14
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = header
-	
-	local refreshBtn = Instance.new("TextButton")
-	refreshBtn.Size = UDim2.new(0, 80, 1, -8)
-	refreshBtn.Position = UDim2.new(1, -90, 0, 4)
-	refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-	refreshBtn.Text = "🔄 Refresh"
-	refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	refreshBtn.Font = Enum.Font.GothamBold
-	refreshBtn.TextSize = 11
-	refreshBtn.Parent = header
-	
-	local refreshCorner = Instance.new("UICorner")
-	refreshCorner.CornerRadius = UDim.new(0, 4)
-	refreshCorner.Parent = refreshBtn
-	
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, 0, 1, -48)
-	scroll.Position = UDim2.new(0, 0, 0, 44)
-	scroll.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-	scroll.BorderSizePixel = 0
-	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	scroll.ScrollBarThickness = 6
-	scroll.Parent = content
-	
-	local scrollCorner = Instance.new("UICorner")
-	scrollCorner.CornerRadius = UDim.new(0, 6)
-	scrollCorner.Parent = scroll
-	
-	local layout = Instance.new("UIListLayout")
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 4)
-	layout.Parent = scroll
-	
-	local padding = Instance.new("UIPadding")
-	padding.PaddingLeft = UDim.new(0, 10)
-	padding.PaddingTop = UDim.new(0, 10)
-	padding.PaddingRight = UDim.new(0, 10)
-	padding.PaddingBottom = UDim.new(0, 10)
-	padding.Parent = scroll
-	
-	local function scanScripts()
-		clearScroll(scroll)
-		
-		local character = player.Character
-		if not character then
-			createLabel(scroll, "❌ Character not found!", Color3.fromRGB(255, 100, 100), 24)
-			updateScrollCanvas(scroll, layout)
-			setStatus("❌ Character not found!", Color3.fromRGB(255, 100, 100))
-			return
-		end
-		
-		local foundAny = false
-		
-		-- Helper to recursively find scripts
-		local function findScriptsInObject(obj, depth, prefix)
-			if depth > 3 then return end
-			
-			for _, child in ipairs(obj:GetChildren()) do
-				if child:IsA("Script") or child:IsA("LocalScript") or child:IsA("ModuleScript") then
-					foundAny = true
-					local scriptType = child:IsA("LocalScript") and "LocalScript" or 
-									  child:IsA("ModuleScript") and "ModuleScript" or "Script"
-					
-					local container = Instance.new("Frame")
-					container.Size = UDim2.new(1, 0, 0, 40)
-					container.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-					container.BorderSizePixel = 0
-					container.Parent = scroll
-					
-					local containerCorner = Instance.new("UICorner")
-					containerCorner.CornerRadius = UDim.new(0, 4)
-					containerCorner.Parent = container
-					
-					local nameLabel = Instance.new("TextLabel")
-					nameLabel.Size = UDim2.new(0.4, 0, 1, 0)
-					nameLabel.Position = UDim2.new(0, 10, 0, 0)
-					nameLabel.BackgroundTransparency = 1
-					local displayName = child.Name
-					if #displayName > 25 then displayName = string.sub(displayName, 1, 25) .. "..." end
-					nameLabel.Text = (prefix or "") .. "📄 " .. displayName
-					nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-					nameLabel.Font = Enum.Font.GothamBold
-					nameLabel.TextSize = 12
-					nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-					nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-					nameLabel.Parent = container
-					
-					local typeLabel = Instance.new("TextLabel")
-					typeLabel.Size = UDim2.new(0.25, 0, 1, 0)
-					typeLabel.Position = UDim2.new(0.4, 10, 0, 0)
-					typeLabel.BackgroundTransparency = 1
-					typeLabel.Text = "[" .. scriptType .. "]"
-					typeLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-					typeLabel.Font = Enum.Font.SourceSans
-					typeLabel.TextSize = 11
-					typeLabel.TextXAlignment = Enum.TextXAlignment.Left
-					typeLabel.Parent = container
-					
-					local sourceLength = #(child.Source or "")
-					local sizeLabel = Instance.new("TextLabel")
-					sizeLabel.Size = UDim2.new(0.2, 0, 1, 0)
-					sizeLabel.Position = UDim2.new(0.65, 10, 0, 0)
-					sizeLabel.BackgroundTransparency = 1
-					sizeLabel.Text = sourceLength .. " chars"
-					sizeLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-					sizeLabel.Font = Enum.Font.SourceSans
-					sizeLabel.TextSize = 10
-					sizeLabel.TextXAlignment = Enum.TextXAlignment.Left
-					sizeLabel.Parent = container
-					
-					local editBtn = Instance.new("TextButton")
-					editBtn.Size = UDim2.new(0, 55, 1, -6)
-					editBtn.Position = UDim2.new(1, -60, 0, 3)
-					editBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-					editBtn.Text = "✎ Edit"
-					editBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-					editBtn.Font = Enum.Font.GothamBold
-					editBtn.TextSize = 11
-					editBtn.Parent = container
-					
-					local editCorner = Instance.new("UICorner")
-					editCorner.CornerRadius = UDim.new(0, 3)
-					editCorner.Parent = editBtn
-					
-					editBtn.MouseButton1Click:Connect(function()
-						local source = child.Source or ""
-						createInputPrompt("Editing: " .. child.Name, source, function(newSource)
-							if newSource then
-								child.Source = newSource
-								setStatus("✅ Updated script: " .. child.Name, Color3.fromRGB(100, 255, 100))
-								scanScripts()
-							end
-						end, true)
-					end)
-				end
-				
-				-- Recursively search deeper
-				findScriptsInObject(child, depth + 1, (prefix or "") .. "  ")
-			end
-		end
-		
-		-- Search Character
-		createSectionHeader(scroll, "📜 Scripts in Character", Color3.fromRGB(100, 200, 255))
-		findScriptsInObject(character, 0, "")
-		
-		-- Search Player
-		createSectionHeader(scroll, "📜 Scripts in Player", Color3.fromRGB(255, 200, 100))
-		local hasPlayerScripts = false
-		for _, child in ipairs(player:GetChildren()) do
-			if child:IsA("Script") or child:IsA("LocalScript") or child:IsA("ModuleScript") then
-				hasPlayerScripts = true
-				local scriptType = child:IsA("LocalScript") and "LocalScript" or 
-								  child:IsA("ModuleScript") and "ModuleScript" or "Script"
-				
-				local container = Instance.new("Frame")
-				container.Size = UDim2.new(1, 0, 0, 40)
-				container.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-				container.BorderSizePixel = 0
-				container.Parent = scroll
-				
-				local containerCorner = Instance.new("UICorner")
-				containerCorner.CornerRadius = UDim.new(0, 4)
-				containerCorner.Parent = container
-				
-				local nameLabel = Instance.new("TextLabel")
-				nameLabel.Size = UDim2.new(0.4, 0, 1, 0)
-				nameLabel.Position = UDim2.new(0, 10, 0, 0)
-				nameLabel.BackgroundTransparency = 1
-				nameLabel.Text = "📄 " .. child.Name
-				nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-				nameLabel.Font = Enum.Font.GothamBold
-				nameLabel.TextSize = 12
-				nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-				nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-				nameLabel.Parent = container
-				
-				local typeLabel = Instance.new("TextLabel")
-				typeLabel.Size = UDim2.new(0.25, 0, 1, 0)
-				typeLabel.Position = UDim2.new(0.4, 10, 0, 0)
-				typeLabel.BackgroundTransparency = 1
-				typeLabel.Text = "[" .. scriptType .. "]"
-				typeLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-				typeLabel.Font = Enum.Font.SourceSans
-				typeLabel.TextSize = 11
-				typeLabel.TextXAlignment = Enum.TextXAlignment.Left
-				typeLabel.Parent = container
-				
-				local sourceLength = #(child.Source or "")
-				local sizeLabel = Instance.new("TextLabel")
-				sizeLabel.Size = UDim2.new(0.2, 0, 1, 0)
-				sizeLabel.Position = UDim2.new(0.65, 10, 0, 0)
-				sizeLabel.BackgroundTransparency = 1
-				sizeLabel.Text = sourceLength .. " chars"
-				sizeLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-				sizeLabel.Font = Enum.Font.SourceSans
-				sizeLabel.TextSize = 10
-				sizeLabel.TextXAlignment = Enum.TextXAlignment.Left
-				sizeLabel.Parent = container
-				
-				local editBtn = Instance.new("TextButton")
-				editBtn.Size = UDim2.new(0, 55, 1, -6)
-				editBtn.Position = UDim2.new(1, -60, 0, 3)
-				editBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-				editBtn.Text = "✎ Edit"
-				editBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-				editBtn.Font = Enum.Font.GothamBold
-				editBtn.TextSize = 11
-				editBtn.Parent = container
-				
-				local editCorner = Instance.new("UICorner")
-				editCorner.CornerRadius = UDim.new(0, 3)
-				editCorner.Parent = editBtn
-				
-				editBtn.MouseButton1Click:Connect(function()
-					local source = child.Source or ""
-					createInputPrompt("Editing: " .. child.Name, source, function(newSource)
-						if newSource then
-							child.Source = newSource
-							setStatus("✅ Updated script: " .. child.Name, Color3.fromRGB(100, 255, 100))
-							scanScripts()
-						end
-					end, true)
-				end)
-			end
-		end
-		
-		if not hasPlayerScripts then
-			createLabel(scroll, "  (No scripts in player)", Color3.fromRGB(150, 150, 150), 22)
-		end
-		
-		if not foundAny and not hasPlayerScripts then
-			createLabel(scroll, "  No scripts found anywhere!", Color3.fromRGB(255, 200, 100), 24)
-			createLabel(scroll, "  Scripts must be in Character or Player to edit", Color3.fromRGB(150, 150, 150), 22)
-		end
-		
-		updateScrollCanvas(scroll, layout)
-	end
-	
-	refreshBtn.MouseButton1Click:Connect(scanScripts)
-	scanScripts()
-end
-
--- =============================================================================
--- TAB SWITCHING
--- =============================================================================
-local function switchTab(tabName)
-	local contentMap = {
-		Tools = tabFrames["Tools"],
-		Player = tabFrames["Player"],
-		Attributes = tabFrames["Attributes"],
-		Scripts = tabFrames["Scripts"]
-	}
-	
-	for name, content in pairs(contentMap) do
-		content.Visible = (name == tabName)
-	end
-	
-	for name, btn in pairs(tabs) do
-		if name == tabName then
-			btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		else
-			btn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-			btn.TextColor3 = Color3.fromRGB(180, 180, 190)
-		end
-	end
-	
-	if tabName == "Tools" then buildToolTab() end
-	if tabName == "Player" then buildPlayerTab() end
-	if tabName == "Attributes" then buildAttributesTab() end
-	if tabName == "Scripts" then buildScriptsTab() end
-end
-
-for name, btn in pairs(tabs) do
-	btn.MouseButton1Click:Connect(function()
-		switchTab(name)
-	end)
-end
-
--- =============================================================================
--- TOGGLE SYSTEM
--- =============================================================================
-local function toggleUI()
-	mainFrame.Visible = not mainFrame.Visible
-	openButton.Visible = not mainFrame.Visible
-end
-
-closeButton.MouseButton1Click:Connect(toggleUI)
-openButton.MouseButton1Click:Connect(toggleUI)
-
-local lastToggle = 0
-UserInputService.InputBegan:Connect(function(input, processed)
-	if input.KeyCode == Enum.KeyCode.M or input.KeyCode == Enum.KeyCode.RightShift then
-		local now = tick()
-		if now - lastToggle > 0.3 then
-			lastToggle = now
-			toggleUI()
-		end
-	end
+-- Close method list when clicking outside
+screenGui.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if methodList.Visible then
+            local mousePos = UserInputService:GetMouseLocation()
+            local listPos = methodList.AbsolutePosition
+            local listSize = methodList.AbsoluteSize
+            if not (mousePos.X >= listPos.X and mousePos.X <= listPos.X + listSize.X and
+                    mousePos.Y >= listPos.Y and mousePos.Y <= listPos.Y + listSize.Y) then
+                methodList.Visible = false
+            end
+        end
+    end
 end)
 
 -- =============================================================================
--- INITIALIZATION
+-- DUPE BUTTONS
 -- =============================================================================
-switchTab("Tools")
-setStatus("🚀 Loaded! Click any value to edit | Press M to toggle", Color3.fromRGB(100, 255, 100))
+local buttonFrame = Instance.new("Frame")
+buttonFrame.Size = UDim2.new(1, 0, 0, 150)
+buttonFrame.Position = UDim2.new(0, 0, 0, 115)
+buttonFrame.BackgroundTransparency = 1
+buttonFrame.Parent = mainFrame
 
-print("⚡ Advanced Modifier Suite loaded successfully!")
-print("📌 Click any attribute value to edit it")
-print("📌 Edit scripts in the Scripts tab")
+-- Main Dupe Button (BIG)
+local dupeButton = Instance.new("TextButton")
+dupeButton.Size = UDim2.new(1, -20, 0, 55)
+dupeButton.Position = UDim2.new(0, 10, 0, 0)
+dupeButton.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
+dupeButton.Text = "🔥 DUPLICATE TOOL"
+dupeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+dupeButton.Font = Enum.Font.GothamBold
+dupeButton.TextSize = 20
+dupeButton.Parent = buttonFrame
+
+local dupeCorner = Instance.new("UICorner")
+dupeCorner.CornerRadius = UDim.new(0, 8)
+dupeCorner.Parent = dupeButton
+
+-- Auto Dupe Toggle
+local autoDupeBtn = Instance.new("TextButton")
+autoDupeBtn.Size = UDim2.new(0.48, -6, 0, 35)
+autoDupeBtn.Position = UDim2.new(0, 10, 0, 60)
+autoDupeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+autoDupeBtn.Text = "⏸ Auto Dupe: OFF"
+autoDupeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoDupeBtn.Font = Enum.Font.GothamBold
+autoDupeBtn.TextSize = 13
+autoDupeBtn.Parent = buttonFrame
+
+local autoCorner = Instance.new("UICorner")
+autoCorner.CornerRadius = UDim.new(0, 6)
+autoCorner.Parent = autoDupeBtn
+
+-- Fast Mode Toggle
+local fastModeBtn = Instance.new("TextButton")
+fastModeBtn.Size = UDim2.new(0.48, -6, 0, 35)
+fastModeBtn.Position = UDim2.new(0.52, 0, 0, 60)
+fastModeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+fastModeBtn.Text = "⚡ Fast Mode: OFF"
+fastModeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+fastModeBtn.Font = Enum.Font.GothamBold
+fastModeBtn.TextSize = 13
+fastModeBtn.Parent = buttonFrame
+
+local fastCorner = Instance.new("UICorner")
+fastCorner.CornerRadius = UDim.new(0, 6)
+fastCorner.Parent = fastModeBtn
+
+-- Drop Toggle
+local dropBtn = Instance.new("TextButton")
+dropBtn.Size = UDim2.new(0.48, -6, 0, 35)
+dropBtn.Position = UDim2.new(0, 10, 0, 100)
+dropBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+dropBtn.Text = "📦 Drop Items: ON"
+dropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+dropBtn.Font = Enum.Font.GothamBold
+dropBtn.TextSize = 13
+dropBtn.Parent = buttonFrame
+
+local dropCorner = Instance.new("UICorner")
+dropCorner.CornerRadius = UDim.new(0, 6)
+dropCorner.Parent = dropBtn
+
+-- Clear Dups Button
+local clearBtn = Instance.new("TextButton")
+clearBtn.Size = UDim2.new(0.48, -6, 0, 35)
+clearBtn.Position = UDim2.new(0.52, 0, 0, 100)
+clearBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+clearBtn.Text = "🗑 Clear All"
+clearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+clearBtn.Font = Enum.Font.GothamBold
+clearBtn.TextSize = 13
+clearBtn.Parent = buttonFrame
+
+local clearCorner = Instance.new("UICorner")
+clearCorner.CornerRadius = UDim.new(0, 6)
+clearCorner.Parent = clearBtn
+
+-- =============================================================================
+-- LOG AREA
+-- =============================================================================
+local logFrame = Instance.new("Frame")
+logFrame.Size = UDim2.new(1, -20, 0, 80)
+logFrame.Position = UDim2.new(0, 10, 0, 270)
+logFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+logFrame.BorderSizePixel = 0
+logFrame.Parent = mainFrame
+
+local logCorner = Instance.new("UICorner")
+logCorner.CornerRadius = UDim.new(0, 6)
+logCorner.Parent = logFrame
+
+local logScroll = Instance.new("ScrollingFrame")
+logScroll.Size = UDim2.new(1, -8, 1, -8)
+logScroll.Position = UDim2.new(0, 4, 0, 4)
+logScroll.BackgroundTransparency = 1
+logScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+logScroll.ScrollBarThickness = 4
+logScroll.Parent = logFrame
+
+local logLayout = Instance.new("UIListLayout")
+logLayout.SortOrder = Enum.SortOrder.LayoutOrder
+logLayout.Padding = UDim.new(0, 2)
+logLayout.Parent = logScroll
+
+local function addLog(text, color)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 18)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+    label.Font = Enum.Font.Code
+    label.TextSize = 11
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.TextWrapped = true
+    label.Parent = logScroll
+    
+    logScroll.CanvasSize = UDim2.new(0, 0, 0, logLayout.AbsoluteContentSize.Y + 10)
+    logScroll.CanvasPosition = Vector2.new(0, logScroll.CanvasSize.Y.Offset)
+end
+
+addLog("🚀 Dupe Tool loaded!", Color3.fromRGB(100, 255, 100))
+addLog("📌 Equip a tool and press DUPLICATE", Color3.fromRGB(255, 200, 100))
+
+-- =============================================================================
+-- DUPLICATION METHODS
+-- =============================================================================
+local function getEquippedTool()
+    local character = player.Character
+    if not character then return nil end
+    return character:FindFirstChildOfClass("Tool")
+end
+
+local function getBackpackTool()
+    local backpack = player:FindFirstChild("Backpack")
+    if not backpack then return nil end
+    return backpack:FindFirstChildOfClass("Tool")
+end
+
+local function cloneTool(tool)
+    if not tool then return nil end
+    local clone = tool:Clone()
+    return clone
+end
+
+local function dropTool(tool)
+    if not tool then return end
+    local character = player.Character
+    if not character then return end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    tool.Parent = workspace
+    tool:SetPrimaryPartCFrame(humanoidRootPart.CFrame * CFrame.new(0, -2, 3 + math.random() * 2))
+end
+
+-- Method 1: Basic Clone
+local function dupeMethod1()
+    local tool = getEquippedTool()
+    if not tool then
+        setStatus("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        addLog("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        return false
+    end
+    
+    local clone = cloneTool(tool)
+    if clone then
+        dropTool(clone)
+        dupeState.dupeCount = dupeState.dupeCount + 1
+        setStatus("✅ Duplicated: " .. tool.Name, Color3.fromRGB(100, 255, 100))
+        addLog("✅ Duplicated: " .. tool.Name .. " (#" .. dupeState.dupeCount .. ")", Color3.fromRGB(100, 255, 100))
+        return true
+    end
+    return false
+end
+
+-- Method 2: Backpack Dupe
+local function dupeMethod2()
+    local tool = getBackpackTool()
+    if not tool then
+        setStatus("❌ No tool in backpack!", Color3.fromRGB(255, 100, 100))
+        addLog("❌ No tool in backpack!", Color3.fromRGB(255, 100, 100))
+        return false
+    end
+    
+    local clone = cloneTool(tool)
+    if clone then
+        clone.Parent = player:FindFirstChild("Backpack") or workspace
+        dupeState.dupeCount = dupeState.dupeCount + 1
+        setStatus("✅ Backpack dupe: " .. tool.Name, Color3.fromRGB(100, 255, 100))
+        addLog("✅ Backpack dupe: " .. tool.Name .. " (#" .. dupeState.dupeCount .. ")", Color3.fromRGB(100, 255, 100))
+        return true
+    end
+    return false
+end
+
+-- Method 3: Attribute Dupe
+local function dupeMethod3()
+    local tool = getEquippedTool()
+    if not tool then
+        setStatus("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        addLog("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        return false
+    end
+    
+    -- Try to dupe by manipulating attributes
+    local success, result = pcall(function()
+        local clone = cloneTool(tool)
+        if clone then
+            -- Set a custom attribute to trick the server
+            clone:SetAttribute("DupeID", os.time() .. "_" .. math.random(9999))
+            dropTool(clone)
+            return true
+        end
+        return false
+    end)
+    
+    if success and result then
+        dupeState.dupeCount = dupeState.dupeCount + 1
+        setStatus("✅ Attribute dupe: " .. tool.Name, Color3.fromRGB(100, 255, 100))
+        addLog("✅ Attribute dupe: " .. tool.Name .. " (#" .. dupeState.dupeCount .. ")", Color3.fromRGB(100, 255, 100))
+        return true
+    end
+    return false
+end
+
+-- Method 4: Server Lag Dupe
+local function dupeMethod4()
+    local tool = getEquippedTool()
+    if not tool then
+        setStatus("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        addLog("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        return false
+    end
+    
+    -- Create multiple clones rapidly to cause lag
+    local successCount = 0
+    for i = 1, 3 do
+        local clone = cloneTool(tool)
+        if clone then
+            dropTool(clone)
+            successCount = successCount + 1
+        end
+        task.wait(0.05)
+    end
+    
+    if successCount > 0 then
+        dupeState.dupeCount = dupeState.dupeCount + successCount
+        setStatus("✅ Lag dupe: " .. successCount .. " copies", Color3.fromRGB(100, 255, 100))
+        addLog("✅ Lag dupe: " .. successCount .. " copies created (#" .. dupeState.dupeCount .. ")", Color3.fromRGB(100, 255, 100))
+        return true
+    end
+    return false
+end
+
+-- Method 5: Drop Dupe
+local function dupeMethod5()
+    local tool = getEquippedTool()
+    if not tool then
+        setStatus("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        addLog("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        return false
+    end
+    
+    -- Simulate drop + clone
+    local clone = cloneTool(tool)
+    if clone then
+        -- Try to drop both original and clone
+        dropTool(clone)
+        task.wait(0.1)
+        dropTool(tool)
+        dupeState.dupeCount = dupeState.dupeCount + 1
+        setStatus("✅ Drop dupe: " .. tool.Name, Color3.fromRGB(100, 255, 100))
+        addLog("✅ Drop dupe: " .. tool.Name .. " (#" .. dupeState.dupeCount .. ")", Color3.fromRGB(100, 255, 100))
+        return true
+    end
+    return false
+end
+
+-- Method 6: Replication Dupe
+local function dupeMethod6()
+    local tool = getEquippedTool()
+    if not tool then
+        setStatus("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        addLog("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        return false
+    end
+    
+    -- Try to dupe through replication tricks
+    local successCount = 0
+    for i = 1, 2 do
+        local clone = cloneTool(tool)
+        if clone then
+            -- Attempt to parent to different locations quickly
+            clone.Parent = workspace
+            task.wait(0.02)
+            clone.Parent = player:FindFirstChild("Backpack") or workspace
+            task.wait(0.02)
+            dropTool(clone)
+            successCount = successCount + 1
+        end
+        task.wait(0.05)
+    end
+    
+    if successCount > 0 then
+        dupeState.dupeCount = dupeState.dupeCount + successCount
+        setStatus("✅ Replication dupe: " .. successCount .. " copies", Color3.fromRGB(100, 255, 100))
+        addLog("✅ Replication dupe: " .. successCount .. " copies (#" .. dupeState.dupeCount .. ")", Color3.fromRGB(100, 255, 100))
+        return true
+    end
+    return false
+end
+
+-- Method 7: Tool Clone Spam
+local function dupeMethod7()
+    local tool = getEquippedTool()
+    if not tool then
+        setStatus("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        addLog("❌ No tool equipped!", Color3.fromRGB(255, 100, 100))
+        return false
+    end
+    
+    local count = dupeState.fastMode and 5 or 3
+    local successCount = 0
+    
+    for i = 1, count do
+        local clone = cloneTool(tool)
+        if clone then
+            -- Randomize position slightly
+            local character = player.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local hrp = character.HumanoidRootPart
+                clone:SetPrimaryPartCFrame(hrp.CFrame * CFrame.new(
+                    math.random(-3, 3),
+                    -2,
+                    math.random(2, 5)
+                ))
+            end
+            clone.Parent = workspace
+            successCount = successCount + 1
+        end
+        task.wait(dupeState.fastMode and 0.02 or 0.08)
+    end
+    
+    if successCount > 0 then
+        dupeState.dupeCount = dupeState.dupeCount + successCount
+        setStatus("✅ Clone spam: " .. successCount .. " copies", Color3.fromRGB(100, 255, 100))
+        addLog("✅ Clone spam: " .. successCount .. " copies created (#" .. dupeState.dupeCount .. ")", Color3.fromRGB(100, 255, 100))
+        return true
+    end
+    return false
+end
+
+-- =============================================================================
+-- DUPE EXECUTOR
+-- =============================================================================
+local function executeDupe()
+    local methodMap = {
+        ["Method 1: Basic Clone"] = dupeMethod1,
+        ["Method 2: Backpack Dupe"] = dupeMethod2,
+        ["Method 3: Attribute Dupe"] = dupeMethod3,
+        ["Method 4: Server Lag Dupe"] = dupeMethod4,
+        ["Method 5: Drop Dupe"] = dupeMethod5,
+        ["Method 6: Replication Dupe"] = dupeMethod6,
+        ["Method 7: Tool Clone Spam"] = dupeMethod7,
+    }
+    
+    local method = methodMap[dupeState.selectedMethod]
+    if method then
+        method()
+        -- Update counter
+        counterLabel.Text = "Duplicates: " .. dupeState.dupeCount
+    else
+        setStatus("❌ Unknown method!", Color3.fromRGB(255, 100, 100))
+    end
+end
+
+-- =============================================================================
+-- BUTTON BINDINGS
+-- =============================================================================
+dupeButton.MouseButton1Click:Connect(executeDupe)
+
+autoDupeBtn.MouseButton1Click:Connect(function()
+    dupeState.autoDupe = not dupeState.autoDupe
+    autoDupeBtn.Text = dupeState.autoDupe and "▶ Auto Dupe: ON" or "⏸ Auto Dupe: OFF"
+    autoDupeBtn.BackgroundColor3 = dupeState.autoDupe and Color3.fromRGB(35, 165, 90) or Color3.fromRGB(40, 40, 50)
+    setStatus(dupeState.autoDupe and "🔄 Auto-dupe enabled" or "⏸ Auto-dupe disabled", Color3.fromRGB(255, 200, 100))
+    addLog(dupeState.autoDupe and "🔁 Auto-dupe enabled" or "⏸ Auto-dupe disabled", Color3.fromRGB(255, 200, 100))
+end)
+
+fastModeBtn.MouseButton1Click:Connect(function()
+    dupeState.fastMode = not dupeState.fastMode
+    fastModeBtn.Text = dupeState.fastMode and "⚡ Fast Mode: ON" or "⚡ Fast Mode: OFF"
+    fastModeBtn.BackgroundColor3 = dupeState.fastMode and Color3.fromRGB(255, 180, 0) or Color3.fromRGB(40, 40, 50)
+    setStatus(dupeState.fastMode and "⚡ Fast mode enabled" or "Fast mode disabled", Color3.fromRGB(255, 200, 100))
+    addLog(dupeState.fastMode and "⚡ Fast mode enabled" or "Fast mode disabled", Color3.fromRGB(255, 200, 100))
+end)
+
+dropBtn.MouseButton1Click:Connect(function()
+    dupeState.dropItems = not dupeState.dropItems
+    dropBtn.Text = dupeState.dropItems and "📦 Drop Items: ON" or "📦 Drop Items: OFF"
+    dropBtn.BackgroundColor3 = dupeState.dropItems and Color3.fromRGB(35, 165, 90) or Color3.fromRGB(40, 40, 50)
+    addLog(dupeState.dropItems and "📦 Drop mode enabled" or "📦 Drop mode disabled", Color3.fromRGB(255, 200, 100))
+end)
+
+clearBtn.MouseButton1Click:Connect(function()
+    local character = player.Character
+    if character then
+        local count = 0
+        for _, child in ipairs(character:GetChildren()) do
+            if child:IsA("Tool") then
+                child:Destroy()
+                count = count + 1
+            end
+        end
+        setStatus("🗑️ Cleared " .. count .. " tools", Color3.fromRGB(255, 200, 100))
+        addLog("🗑️ Cleared " .. count .. " tools from character", Color3.fromRGB(255, 200, 100))
+    end
+end)
+
+-- =============================================================================
+-- KEYBINDS
+-- =============================================================================
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    
+    if input.KeyCode == Enum.KeyCode.M or input.KeyCode == Enum.KeyCode.RightShift then
+        mainFrame.Visible = not mainFrame.Visible
+        openButton.Visible = not mainFrame.Visible
+        if methodList.Visible then methodList.Visible = false end
+    end
+    
+    -- F key for quick dupe
+    if input.KeyCode == Enum.KeyCode.F and mainFrame.Visible then
+        executeDupe()
+    end
+    
+    -- R key to reset counter
+    if input.KeyCode == Enum.KeyCode.R and mainFrame.Visible then
+        dupeState.dupeCount = 0
+        counterLabel.Text = "Duplicates: 0"
+        setStatus("🔄 Counter reset", Color3.fromRGB(255, 200, 100))
+        addLog("🔄 Dupe counter reset", Color3.fromRGB(255, 200, 100))
+    end
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    openButton.Visible = true
+end)
+
+openButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = true
+    openButton.Visible = false
+end)
+
+-- =============================================================================
+-- AUTO-DUPE LOOP
+-- =============================================================================
+task.spawn(function()
+    while true do
+        if dupeState.autoDupe and mainFrame.Visible then
+            executeDupe()
+        end
+        task.wait(dupeState.fastMode and 0.3 or 0.8)
+    end
+end)
+
+-- =============================================================================
+-- CHARACTER CHECK
+-- =============================================================================
+local function onCharacterAdded()
+    task.wait(1)
+    addLog("👤 Character loaded!", Color3.fromRGB(100, 200, 255))
+    setStatus("✅ Ready - Equip a tool", Color3.fromRGB(100, 255, 100))
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+
+-- =============================================================================
+-- INIT
+-- =============================================================================
+addLog("🔥 Ready to duplicate!", Color3.fromRGB(255, 200, 100))
+addLog("📌 Press [F] to quick dupe", Color3.fromRGB(255, 200, 100))
+addLog("📌 Press [R] to reset counter", Color3.fromRGB(255, 200, 100))
+addLog("📌 Press [M] or [Right Shift] to toggle", Color3.fromRGB(255, 200, 100))
+
+setStatus("🚀 Dupe Tool Ready - Select a method!", Color3.fromRGB(100, 255, 100))
+
+print("⚡ Dupe Tool v2.0 loaded!")
+print("📌 Press [F] to duplicate")
+print("📌 Press [R] to reset counter")
 print("📌 Press [M] or [Right Shift] to toggle UI")
